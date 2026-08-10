@@ -64,27 +64,57 @@ const allQueues = [
  * Dispatch Helpers
  */
 const addNotificationJob = async (name, data, opts = {}) => {
-  return await notificationQueue.add(name || 'send-notification', data, opts);
+  try {
+    return await notificationQueue.add(name || 'send-notification', data, opts);
+  } catch (err) {
+    console.warn('[Queue Fallback] Notification queue unavailable:', err.message);
+    return null;
+  }
 };
 
 const addEmailJob = async (name, data, opts = {}) => {
-  return await emailQueue.add(name || 'send-email', data, opts);
+  try {
+    return await emailQueue.add(name || 'send-email', data, opts);
+  } catch (err) {
+    console.warn('[Queue Fallback] Email queue unavailable:', err.message);
+    return null;
+  }
 };
 
 const addFeeJob = async (name, data, opts = {}) => {
-  return await feeQueue.add(name || 'process-fee-task', data, opts);
+  try {
+    return await feeQueue.add(name || 'process-fee-task', data, opts);
+  } catch (err) {
+    console.warn('[Queue Fallback] Fee queue unavailable:', err.message);
+    return null;
+  }
 };
 
 const addReportJob = async (name, data, opts = {}) => {
-  return await reportQueue.add(name || 'generate-report', data, opts);
+  try {
+    return await reportQueue.add(name || 'generate-report', data, opts);
+  } catch (err) {
+    console.warn('[Queue Fallback] Report queue unavailable:', err.message);
+    return null;
+  }
 };
 
 const addAttendanceJob = async (name, data, opts = {}) => {
-  return await attendanceQueue.add(name || 'process-attendance', data, opts);
+  try {
+    return await attendanceQueue.add(name || 'process-attendance', data, opts);
+  } catch (err) {
+    console.warn('[Queue Fallback] Attendance queue unavailable:', err.message);
+    return null;
+  }
 };
 
 const addSystemJob = async (name, data, opts = {}) => {
-  return await systemQueue.add(name || 'system-task', data, opts);
+  try {
+    return await systemQueue.add(name || 'system-task', data, opts);
+  } catch (err) {
+    console.warn('[Queue Fallback] System queue unavailable:', err.message);
+    return null;
+  }
 };
 
 /**

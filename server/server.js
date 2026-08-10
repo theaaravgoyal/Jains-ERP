@@ -23,15 +23,7 @@ const start = async () => {
     // 1. Connect MongoDB
     await connectDB();
 
-    // 2. Initialize Redis connection
-    getRedisClient();
-
-    // 3. Initialize BullMQ background workers
-    initWorkers();
-
-    // 4. Register BullMQ repeatable scheduled cron jobs
-    await initScheduledJobs();
-
+    // 2. Start HTTP Server immediately so Railway/Healthcheck responds instantly
     serverInstance = app.listen(PORT, () => {
       console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
       console.log(`BullMQ Admin Dashboard available at: http://localhost:${PORT}/admin/queues`);
@@ -45,6 +37,17 @@ const start = async () => {
       }
       process.exit(1);
     });
+
+    // 3. Initialize background services asynchronously (non-blocking)
+    try {
+      getRedisClient();
+      initWorkers();
+      initScheduledJobs().catch((jobErr) => {
+        console.warn('[BullMQ Scheduler] Scheduled jobs notice:', jobErr.message);
+      });
+    } catch (bgErr) {
+      console.warn('[Background Services] Background queues initialisation skipped/deferred:', bgErr.message);
+    }
   } catch (err) {
     console.error(`Fatal server start error - ${err.message}`);
     console.log('Restarting server after 5 seconds...');

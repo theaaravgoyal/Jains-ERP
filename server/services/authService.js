@@ -58,7 +58,7 @@ class AuthService {
 
     // Mock Login Fallback (For instant testing and demo purposes)
     const mockAccounts = {
-      'aadishjaindesign@gmail.com': { name: 'Aadish Jain Design', role: 'Super Admin', status: 'active' }
+      'aadishjaindesign@gmail.com': { name: 'Aadish Jain', role: 'Super Admin', status: 'active' }
     };
 
     if (mockAccounts[email] && password === 'aadishjain') {

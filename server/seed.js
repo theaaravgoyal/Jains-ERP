@@ -148,7 +148,7 @@ const seedData = async () => {
     // 4. Create Users (with role objectIds)
     const usersData = [
       {
-        name: 'Aadish Jain Design',
+        name: 'Aadish Jain',
         email: 'aadishjaindesign@gmail.com',
         password: 'aadishjain',
         role: roles['Super Admin'],

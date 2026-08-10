@@ -124,7 +124,7 @@ const seedDefaultAuthData = async () => {
 
       // 4. Create Super Admin User
       const adminUser = {
-        name: 'Aadish Jain Design',
+        name: 'Aadish Jain',
         email: 'aadishjaindesign@gmail.com',
         password: 'aadishjain',
         role: roles['Super Admin'],

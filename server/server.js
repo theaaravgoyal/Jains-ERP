@@ -20,11 +20,8 @@ let serverInstance = null;
 
 const start = async () => {
   try {
-    // 1. Connect MongoDB
-    await connectDB();
-
-    // 2. Start HTTP Server immediately so Railway/Healthcheck responds instantly
-    serverInstance = app.listen(PORT, () => {
+    // 1. Start HTTP Server immediately on 0.0.0.0 so Railway/Vercel/Render health checks pass instantly
+    serverInstance = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
       console.log(`BullMQ Admin Dashboard available at: http://localhost:${PORT}/admin/queues`);
     });
@@ -36,6 +33,11 @@ const start = async () => {
         console.error(`Fatal: could not start server - ${err.message}`);
       }
       process.exit(1);
+    });
+
+    // 2. Connect MongoDB
+    connectDB().catch((dbErr) => {
+      console.error('[Database Error] Initial database connection failed:', dbErr.message);
     });
 
     // 3. Initialize background services asynchronously (non-blocking)

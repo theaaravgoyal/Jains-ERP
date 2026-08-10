@@ -3,6 +3,8 @@ import {
   User, Send, RotateCcw, Save, Search,
   Phone, CalendarDays, BookOpen, Users, Link2
 } from 'lucide-react';
+import { formatDate } from '../../../utils/dateUtils';
+import DatePicker from '../../FeesManagement/components/DatePicker';
 
 const PREDEFINED_COURSES = [
   'Digital Marketing', 'Graphic Designing', 'Video Editing', 'Web Development', 'UI/UX Design',
@@ -95,7 +97,7 @@ export default function OfflineLeadForm({ onSubmit, editingLead, onCancel }) {
           NEW OFFLINE LEAD ENTRY
         </div>
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+          {formatDate(new Date())}
         </span>
       </div>
 
@@ -226,16 +228,11 @@ export default function OfflineLeadForm({ onSubmit, editingLead, onCancel }) {
 
           {/* 6. Date */}
           <div>
-            <label className={labelCls}>Enquiry Date <span className="text-[#E31C1C]">*</span></label>
-            <div className="relative">
-              <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                className={`${inputCls} pl-8`}
-                type="date"
-                value={form.date}
-                onChange={e => set('date', e.target.value)}
-              />
-            </div>
+            <DatePicker
+              label="Enquiry Date *"
+              value={form.date}
+              onChange={val => set('date', val)}
+            />
           </div>
         </div>
       </div>

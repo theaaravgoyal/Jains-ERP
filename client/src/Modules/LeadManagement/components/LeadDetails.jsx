@@ -5,6 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import CallDialerModal from './CallDialerModal';
 import WhatsAppWorkspaceModal from './WhatsAppWorkspaceModal';
 import ActivityModal from './ActivityModal';
+import { formatDate } from '../../../utils/dateUtils';
 
 const STAFF_MEMBERS = [
   "Neha",
@@ -592,7 +593,7 @@ export default function LeadDetails({ lead, onClose, onUpdateStatus, onDeleteLea
                       {act.followUpDate && (
                         <>
                           <span>•</span>
-                          <span className="text-[#E31C1C]">FOLLOW UP: {new Date(act.followUpDate).toLocaleDateString("en-IN")}</span>
+                          <span className="text-[#E31C1C]">FOLLOW UP: {formatDate(act.followUpDate)}</span>
                         </>
                       )}
                     </div>

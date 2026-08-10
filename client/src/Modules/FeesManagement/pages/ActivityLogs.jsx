@@ -6,6 +6,7 @@ import FilterPanel from '../components/FilterPanel';
 import Loader from '../components/Loader';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import { formatDate } from '../../../utils/dateUtils';
 
 const ActivityLogs = () => {
   const [activities, setActivities] = useState([]);
@@ -118,7 +119,7 @@ const ActivityLogs = () => {
           <div className="relative border-l border-slate-100 ml-3 space-y-6">
             {filteredActivities.map((log, idx) => {
               const d = log.createdAt ? new Date(log.createdAt) : new Date();
-              const dateStr = d.toLocaleDateString('en-IN');
+              const dateStr = formatDate(d);
               const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
               return (

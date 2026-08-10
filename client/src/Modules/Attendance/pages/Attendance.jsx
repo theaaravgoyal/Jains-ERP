@@ -8,6 +8,8 @@ import * as XLSX from 'xlsx';
 import { adminAttendanceApi } from '../../../api/adminAttendanceApi';
 import Card from '../../../components/Card';
 import Button from '../../../components/Button';
+import { formatDate } from '../../../utils/dateUtils';
+import DatePicker from '../../FeesManagement/components/DatePicker';
 
 export default function Attendance() {
   const navigate = useNavigate();
@@ -487,7 +489,7 @@ export default function Attendance() {
 
     // Format data rows
     const dataRows = reportData.map(day => ({
-      'Date': new Date(day.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
+      'Date': formatDate(day.date),
       'Day': day.dayOfWeek,
       'Status': day.status,
       'Check-In': day.checkIn,
@@ -584,7 +586,7 @@ export default function Attendance() {
               <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Attendance</h1>
               <div className="flex items-center gap-1.5 text-xs text-slate-600 font-bold bg-[#FAF9F6] border border-[#E8E6E1] py-1.5 px-3 rounded-lg shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
                 <Calendar size={14} className="text-slate-400" />
-                <span>{new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <span>{formatDate(new Date())}</span>
               </div>
             </div>
             <p className="text-xs text-slate-500 font-bold tracking-wide uppercase">Corporate Attendance Control Panel</p>
@@ -816,7 +818,7 @@ export default function Attendance() {
                                 </td>
                                 <td className="py-3 text-xs text-slate-600">{emp.department || '-'}</td>
                                 <td className="py-3 font-mono text-xs text-slate-500">
-                                  {new Date(emp.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
+                                  {formatDate(emp.createdAt)}
                                 </td>
                                 <td className="py-3 text-right">
                                   <div className="inline-flex gap-2">
@@ -993,7 +995,7 @@ export default function Attendance() {
                                 </td>
                                 <td className="py-3 font-bold text-slate-800 text-xs">{item.leaveType}</td>
                                 <td className="py-3 text-slate-550 text-xs font-semibold">
-                                  {new Date(item.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} - {new Date(item.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  {formatDate(item.startDate)} - {formatDate(item.endDate)}
                                 </td>
                                 <td className="py-3 italic text-slate-550 max-w-[120px] truncate text-xs" title={item.reason}>{item.reason}</td>
                                 <td className="py-3">
@@ -1638,7 +1640,7 @@ export default function Attendance() {
                         {reportData.map((day, idx) => (
                           <tr key={idx} className="hover:bg-[#FAF9F6]/40 transition-colors">
                             <td className="p-4 font-bold text-slate-800">
-                              {new Date(day.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {formatDate(day.date)}
                             </td>
                             <td className="p-4 text-slate-500 font-semibold">{day.dayOfWeek}</td>
                             <td className="p-4">
@@ -1734,13 +1736,11 @@ export default function Attendance() {
             <div className="overflow-y-auto flex-1 pr-1">
               {holidayActiveTab === 'declare' ? (
                 <form onSubmit={handleSaveHoliday} className="space-y-4">
-                  <div className="space-y-1.5 flex flex-col">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide block">Select Date</label>
-                    <input
-                      type="date"
+                  <div>
+                    <DatePicker
+                      label="Select Date"
                       value={holidayDate}
-                      onChange={(e) => setHolidayDate(e.target.value)}
-                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
+                      onChange={(val) => setHolidayDate(val)}
                       required
                     />
                   </div>
@@ -1836,7 +1836,7 @@ export default function Attendance() {
                               ) : (
                                 <>
                                   <td className="p-3 font-bold text-slate-800">
-                                    {new Date(holiday.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    {formatDate(holiday.date)}
                                   </td>
                                   <td className="p-3 text-slate-500 font-bold">{holiday.reason}</td>
                                   <td className="p-3 text-right">

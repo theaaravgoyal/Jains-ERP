@@ -4,6 +4,7 @@ import {
   Sparkles, Check, RefreshCw
 } from 'lucide-react';
 import { COURSES } from '../../../constants/Courses';
+import { formatDate } from '../../../utils/dateUtils';
 import DatePicker from '../components/DatePicker';
 import Loader from '../components/Loader';
 import ErrorState from '../components/ErrorState';
@@ -25,8 +26,8 @@ const ManualEnrollment = ({ onNavigate }) => {
     rollNo: '',
     section: 'A',
     admissionDate: new Date().toISOString().split('T')[0],
-    totalFee: 120000,
-    discount: 0,
+    totalFee: '',
+    discount: '',
     paymentType: 'Installments',
     installmentCount: 3
   });
@@ -36,14 +37,12 @@ const ManualEnrollment = ({ onNavigate }) => {
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
 
-  // Field change handler
+  // Field change handler - allows fluid typing and backspacing
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'totalFee' || name === 'discount' || name === 'installmentCount' 
-        ? Math.max(0, parseInt(value) || 0)
-        : value
+      [name]: value
     }));
     if (validationErrors[name]) {
       setValidationErrors(prev => {
@@ -56,7 +55,9 @@ const ManualEnrollment = ({ onNavigate }) => {
 
   // Live calculations
   const billingSummary = useMemo(() => {
-    const subtotal = Math.max(0, formData.totalFee - formData.discount);
+    const totalFeeNum = Number(formData.totalFee) || 0;
+    const discountNum = Number(formData.discount) || 0;
+    const subtotal = Math.max(0, totalFeeNum - discountNum);
     const totalPayable = subtotal;
     
     // Installments generator
@@ -68,15 +69,16 @@ const ManualEnrollment = ({ onNavigate }) => {
         dueDate: formData.admissionDate
       });
     } else {
-      const amtPerInstallment = Math.round(totalPayable / formData.installmentCount);
+      const count = Math.max(1, parseInt(formData.installmentCount) || 1);
+      const amtPerInstallment = Math.round(totalPayable / count);
       const baseDate = new Date(formData.admissionDate);
-      for (let i = 0; i < formData.installmentCount; i++) {
+      for (let i = 0; i < count; i++) {
         const dueDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + (i * 3), baseDate.getDate());
         
         // Handle rounding difference on final installment
-        const isLast = i === formData.installmentCount - 1;
+        const isLast = i === count - 1;
         const installmentAmt = isLast 
-          ? totalPayable - (amtPerInstallment * (formData.installmentCount - 1)) 
+          ? totalPayable - (amtPerInstallment * (count - 1)) 
           : amtPerInstallment;
 
         installments.push({
@@ -180,14 +182,6 @@ const ManualEnrollment = ({ onNavigate }) => {
       currency: 'INR',
       maximumFractionDigits: 0
     }).format(amount || 0);
-  };
-
-  // Format date
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 'N/A';
-    return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   if (formSuccess) {
@@ -361,6 +355,7 @@ const ManualEnrollment = ({ onNavigate }) => {
                   name="totalFee" 
                   value={formData.totalFee} 
                   onChange={handleChange}
+                  placeholder="e.g. 120000"
                   className="w-full px-3 py-2 border border-[#DEDCD8] rounded-xl font-semibold outline-none focus:border-amber-400"
                   min="0"
                 />
@@ -373,6 +368,7 @@ const ManualEnrollment = ({ onNavigate }) => {
                   name="discount" 
                   value={formData.discount} 
                   onChange={handleChange}
+                  placeholder="0"
                   className="w-full px-3 py-2 border border-[#DEDCD8] rounded-xl font-semibold outline-none focus:border-amber-400"
                   min="0"
                 />

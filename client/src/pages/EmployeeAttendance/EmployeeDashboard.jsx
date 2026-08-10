@@ -20,6 +20,8 @@ import {
 import { useEmployeeAuth } from '../../context/EmployeeAuthContext';
 import { employeeApi } from '../../api/employeeApi';
 import { ROUTES } from '../../constants/Routes';
+import { formatDate } from '../../utils/dateUtils';
+import DatePicker from '../../Modules/FeesManagement/components/DatePicker';
 
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
@@ -330,7 +332,7 @@ export default function EmployeeDashboard() {
       if (todayCell) {
         setSelectedDayDetails({
           day: todayCell.day,
-          dateLabel: todayCell.cellDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+          dateLabel: `${todayCell.cellDate.toLocaleDateString('en-GB', { weekday: 'short' })}, ${formatDate(todayCell.cellDate)}`,
           status: todayCell.status,
           log: todayCell.log
         });
@@ -340,7 +342,7 @@ export default function EmployeeDashboard() {
       if (firstCell) {
         setSelectedDayDetails({
           day: firstCell.day,
-          dateLabel: firstCell.cellDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+          dateLabel: `${firstCell.cellDate.toLocaleDateString('en-GB', { weekday: 'short' })}, ${formatDate(firstCell.cellDate)}`,
           status: firstCell.status,
           log: firstCell.log
         });
@@ -352,7 +354,7 @@ export default function EmployeeDashboard() {
     if (cell.type !== 'day') return;
     setSelectedDayDetails({
       day: cell.day,
-      dateLabel: cell.cellDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+      dateLabel: `${cell.cellDate.toLocaleDateString('en-GB', { weekday: 'short' })}, ${formatDate(cell.cellDate)}`,
       status: cell.status,
       log: cell.log
     });
@@ -410,7 +412,7 @@ export default function EmployeeDashboard() {
                         <div key={n._id} className={`p-2.5 rounded-xl text-[10px] leading-tight ${n.isRead ? 'bg-[#FAF9F6] text-slate-600' : 'bg-rose-50/50 text-slate-850 font-bold border border-rose-100/30'}`}>
                           <div className="flex justify-between items-center mb-0.5">
                             <span className="text-brand-red font-black uppercase text-[8px] tracking-wide">{n.senderName}</span>
-                            <span className="text-slate-400 text-[8px]">{new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            <span className="text-slate-400 text-[8px]">{formatDate(n.createdAt)}</span>
                           </div>
                           <p className="mt-0.5">{n.message}</p>
                         </div>
@@ -464,7 +466,7 @@ export default function EmployeeDashboard() {
                   {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                 </h2>
                 <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
-                  {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                  {currentTime.toLocaleDateString('en-GB', { weekday: 'long' })}, {formatDate(currentTime)}
                 </span>
               </div>
 
@@ -820,23 +822,19 @@ export default function EmployeeDashboard() {
 
                     {/* Date Inputs Grid */}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-wide">Start Date</label>
-                        <input
-                          type="date"
+                      <div>
+                        <DatePicker
+                          label="Start Date"
                           value={leaveStartDate}
-                          onChange={(e) => setLeaveStartDate(e.target.value)}
-                          className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-850 outline-none focus:border-slate-450 focus:bg-white transition-all"
+                          onChange={(val) => setLeaveStartDate(val)}
                           required
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-wide">End Date</label>
-                        <input
-                          type="date"
+                      <div>
+                        <DatePicker
+                          label="End Date"
                           value={leaveEndDate}
-                          onChange={(e) => setLeaveEndDate(e.target.value)}
-                          className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-855 outline-none focus:border-slate-450 focus:bg-white transition-all"
+                          onChange={(val) => setLeaveEndDate(val)}
                           required
                         />
                       </div>
@@ -924,7 +922,7 @@ export default function EmployeeDashboard() {
                             <div className="flex justify-between">
                               <span>Duration</span>
                               <strong className="text-slate-700">
-                                {new Date(item.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} - {new Date(item.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                {formatDate(item.startDate)} - {formatDate(item.endDate)}
                               </strong>
                             </div>
                             <div className="pt-1.5 border-t border-slate-50 flex flex-col gap-0.5">

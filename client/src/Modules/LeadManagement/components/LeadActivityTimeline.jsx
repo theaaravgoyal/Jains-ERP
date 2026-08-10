@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, Edit2, Trash2, ClipboardList } from 'lucide-react';
+import { formatDate } from '../../../utils/dateUtils';
 
 const STAFF_COLORS = {
   "Neha": "bg-purple-500 text-white",
@@ -89,11 +90,7 @@ export default function LeadActivityTimeline({ activities, onEdit, onDelete }) {
                 {activity.followUpDate && (
                   <div className="flex items-center gap-1.5 text-[10px] text-[#E31C1C] font-bold">
                     <Calendar size={11} />
-                    <span>Follow-up Date: {new Date(activity.followUpDate).toLocaleDateString("en-IN", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}</span>
+                    <span>Follow-up Date: {formatDate(activity.followUpDate)}</span>
                   </div>
                 )}
 

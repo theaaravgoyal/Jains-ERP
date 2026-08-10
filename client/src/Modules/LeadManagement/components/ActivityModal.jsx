@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import DatePicker from '../../FeesManagement/components/DatePicker';
 
 const STAFF_MEMBERS = [
   "Neha",
@@ -165,14 +166,11 @@ export default function ActivityModal({ lead, activity, onClose, onSave, connect
             </div>
 
             {/* Follow-up date */}
-            <div className="space-y-1.5 flex flex-col">
-              <label className="text-[10px] font-black text-slate-455 uppercase tracking-wide">Follow-up / Visit Date <span className="text-slate-450 font-normal">(Optional)</span></label>
-              <input
-                type="date"
+            <div>
+              <DatePicker
+                label="Follow-up / Visit Date (Optional)"
                 value={followUpDate}
-                onChange={(e) => setFollowUpDate(e.target.value)}
-                className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-3 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all cursor-pointer"
-                min={new Date().toISOString().split("T")[0]}
+                onChange={val => setFollowUpDate(val)}
               />
             </div>
 

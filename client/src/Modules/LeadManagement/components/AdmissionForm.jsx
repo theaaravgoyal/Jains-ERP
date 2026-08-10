@@ -3,6 +3,7 @@ import {
   User, Upload, BookOpen, CreditCard, Save, Send, RotateCcw,
   Search, Plus, Trash2, AlertCircle, Phone, Mail, CalendarDays, ShieldCheck
 } from 'lucide-react';
+import DatePicker from '../../FeesManagement/components/DatePicker';
 
 const PREDEFINED_COURSES = [
   'Digital Marketing', 'Graphic Designing', 'Video Editing', 'Web Development', 'UI/UX Design',
@@ -228,11 +229,11 @@ export default function AdmissionForm({ onSubmit, editingStudent, onCancel }) {
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Date of Birth</label>
-                <div className="relative">
-                  <CalendarDays size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input className={`${inputCls} pl-8`} type="date" value={form.dob} onChange={e => set('dob', e.target.value)} />
-                </div>
+                <DatePicker
+                  label="Date of Birth"
+                  value={form.dob}
+                  onChange={val => set('dob', val)}
+                />
               </div>
               <div>
                 <label className={labelCls}>Age <span className="text-[10px] font-bold text-slate-400 normal-case">(Auto-calculated, editable)</span></label>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { certificateApi } from '../../../api/certificateApi';
 import Card from '../../../components/Card';
+import { formatDate } from '../../../utils/dateUtils';
 
 export default function CertificateManagement() {
   const navigate = useNavigate();
@@ -291,7 +292,7 @@ export default function CertificateManagement() {
                         </td>
                         <td className="p-4 font-mono font-bold text-slate-700">{item.enrollmentNumber}</td>
                         <td className="p-4 text-slate-500 font-bold">{item.course}</td>
-                        <td className="p-4 text-slate-400">{item.courseIssueDate}</td>
+                        <td className="p-4 text-slate-400">{formatDate(item.courseIssueDate)}</td>
                         <td className="p-4 text-slate-500 font-semibold">{item.duration}</td>
                         <td className="p-4">
                           <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wide border ${
@@ -303,7 +304,7 @@ export default function CertificateManagement() {
                           </span>
                         </td>
                         <td className="p-4 text-slate-550">{item.internshipDuration || '-'}</td>
-                        <td className="p-4 font-bold text-slate-700">{item.issueDate}</td>
+                        <td className="p-4 font-bold text-slate-700">{formatDate(item.issueDate)}</td>
                         <td className="p-4 text-right">
                           <div className="inline-flex gap-1.5">
                             <button
@@ -395,13 +396,13 @@ export default function CertificateManagement() {
 
               {/* Course Issue Date */}
               <div className="space-y-1.5 flex flex-col">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Course Issue Date</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Course Issue Date (DD/MM/YYYY)</label>
                 <input
                   type="text"
                   value={courseIssueDate}
                   onChange={(e) => setCourseIssueDate(e.target.value)}
-                  placeholder="e.g. 12 March 2025"
-                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-3 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all shadow-xs"
+                  placeholder="DD/MM/YYYY (e.g. 12/03/2025)"
+                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-3 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all shadow-xs font-mono"
                   required
                 />
               </div>
@@ -449,13 +450,13 @@ export default function CertificateManagement() {
 
               {/* Certificate Issue Date */}
               <div className="space-y-1.5 flex flex-col">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Certificate Issue Date</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Certificate Issue Date (DD/MM/YYYY)</label>
                 <input
                   type="text"
                   value={issueDate}
                   onChange={(e) => setIssueDate(e.target.value)}
-                  placeholder="e.g. 01 Jan 2026"
-                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-3 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all shadow-xs"
+                  placeholder="DD/MM/YYYY (e.g. 01/01/2026)"
+                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-3 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all shadow-xs font-mono"
                   required
                 />
               </div>
@@ -526,12 +527,13 @@ export default function CertificateManagement() {
               </div>
 
               <div className="space-y-1.5 flex flex-col">
-                <label className="text-xs font-bold text-slate-655 uppercase tracking-wide block">Course Issue Date</label>
+                <label className="text-xs font-bold text-slate-655 uppercase tracking-wide block">Course Issue Date (DD/MM/YYYY)</label>
                 <input
                   type="text"
                   value={editItem.courseIssueDate}
                   onChange={(e) => setEditItem({ ...editItem, courseIssueDate: e.target.value })}
-                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
+                  placeholder="DD/MM/YYYY"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#DEDCD8] text-xs font-bold text-slate-800 focus:border-slate-400 outline-none bg-white font-mono"
                   required
                 />
               </div>
@@ -571,12 +573,13 @@ export default function CertificateManagement() {
               </div>
 
               <div className="space-y-1.5 flex flex-col">
-                <label className="text-xs font-bold text-slate-655 uppercase tracking-wide block">Issue Date</label>
+                <label className="text-xs font-bold text-slate-655 uppercase tracking-wide block">Certificate Issue Date (DD/MM/YYYY)</label>
                 <input
                   type="text"
                   value={editItem.issueDate}
                   onChange={(e) => setEditItem({ ...editItem, issueDate: e.target.value })}
-                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
+                  placeholder="DD/MM/YYYY"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#DEDCD8] text-xs font-bold text-slate-800 focus:border-slate-400 outline-none bg-white font-mono"
                   required
                 />
               </div>

@@ -6,6 +6,7 @@ import StatusBadge from '../components/StatusBadge';
 import Loader from '../components/Loader';
 import ErrorState from '../components/ErrorState';
 import { usePayments } from '../hooks/usePayments';
+import { formatDate } from '../../../utils/dateUtils';
 
 const PaymentHistory = () => {
   const { payments, loading, error, refetchPayments } = usePayments();
@@ -82,7 +83,7 @@ const PaymentHistory = () => {
     {
       header: 'Processed Date',
       accessor: 'paymentDate',
-      render: (rec) => <span className="text-slate-500">{rec.paymentDate ? new Date(rec.paymentDate).toLocaleDateString('en-IN') : 'N/A'}</span>
+      render: (rec) => <span className="text-slate-500">{formatDate(rec.paymentDate)}</span>
     }
   ];
 

@@ -4,6 +4,7 @@ import {
   Check, DollarSign, Wallet, RefreshCw
 } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
+import { formatDate } from '../../../utils/dateUtils';
 import Loader from '../components/Loader';
 import ErrorState from '../components/ErrorState';
 import { useStudents } from '../hooks/useStudents';
@@ -295,7 +296,7 @@ const Payments = ({ studentId, onNavigate }) => {
                   <option value="">-- No Specific Installment (Advance/Partial) --</option>
                   {installments.filter(i => i.status !== 'PAID').map(i => (
                     <option key={i._id} value={i._id}>
-                      Inst #{i.installmentNo} &mdash; Due {new Date(i.dueDate).toLocaleDateString('en-IN')} ({formatINR(i.remainingAmount)})
+                      Inst #{i.installmentNo} &mdash; Due {formatDate(i.dueDate)} ({formatINR(i.remainingAmount)})
                     </option>
                   ))}
                 </select>

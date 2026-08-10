@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, List } from 'lucide-react';
 import OfflineLeadForm from './OfflineLeadForm';
 import { leadService } from '../services/leadService';
+import { formatDate } from '../../../utils/dateUtils';
 
 export default function OfflineLeadsTab({ leads = [], refreshLeads }) {
   const [nestedTab, setNestedTab] = useState('new-lead'); // 'new-lead' | 'saved-leads'
@@ -146,7 +147,7 @@ export default function OfflineLeadsTab({ leads = [], refreshLeads }) {
                   <span className="text-xs font-semibold text-slate-700 truncate">{lead.course}</span>
                   <span className="text-xs font-semibold text-slate-600">{lead.counsellor || '—'}</span>
                   <span className="text-[10px] font-bold text-slate-500">
-                    {new Date(lead.date || lead.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {formatDate(lead.date || lead.createdAt)}
                   </span>
                   <div className="flex items-center justify-end gap-2">
                     <button

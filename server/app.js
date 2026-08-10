@@ -61,12 +61,28 @@ app.get('/api', (req, res) => {
   });
 });
 
+const mongoose = require('mongoose');
+
 // Health Check Route
 app.get('/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'ERP Portal server is healthy and running.' });
+  const isDbConnected = mongoose.connection.readyState === 1;
+  res.status(isDbConnected ? 200 : 503).json({
+    success: isDbConnected,
+    message: isDbConnected ? 'ERP Portal server is healthy and connected to database.' : 'Server is running but MongoDB is not connected.',
+    database: isDbConnected ? 'connected' : 'disconnected',
+    mongoConfigured: Boolean(process.env.MONGO_URI),
+    uptime: Math.floor(process.uptime())
+  });
 });
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'ERP Portal server is healthy and running.' });
+  const isDbConnected = mongoose.connection.readyState === 1;
+  res.status(isDbConnected ? 200 : 503).json({
+    success: isDbConnected,
+    message: isDbConnected ? 'ERP Portal server is healthy and connected to database.' : 'Server is running but MongoDB is not connected.',
+    database: isDbConnected ? 'connected' : 'disconnected',
+    mongoConfigured: Boolean(process.env.MONGO_URI),
+    uptime: Math.floor(process.uptime())
+  });
 });
 
 // Bull-Board Web UI Monitoring Dashboard

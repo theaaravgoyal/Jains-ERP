@@ -17,6 +17,18 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Catch Mongoose buffering timeout errors
+  if (err.message && err.message.includes('buffering timed out')) {
+    const cleanMessage = 'Database is currently unreachable. Please verify MongoDB Atlas IP Whitelist (allow 0.0.0.0/0) and MONGO_URI in environment variables.';
+    logger.error(`${req.method} ${req.originalUrl} - 503 Service Unavailable - ${cleanMessage}`);
+    return res.status(503).json({
+      success: false,
+      message: cleanMessage,
+      errors: [cleanMessage],
+      timestamp: new Date().toISOString()
+    });
+  }
+
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
   const errors = err.errors || [message];

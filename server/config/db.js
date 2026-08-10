@@ -130,10 +130,27 @@ const seedDefaultAuthData = async () => {
   }
 };
 
+let isConnecting = false;
+
 const connectDB = async () => {
+  const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/erp-portal';
+
+  if (!process.env.MONGO_URI) {
+    console.warn('[MongoDB Warning] MONGO_URI environment variable is not defined. Falling back to local mongodb://127.0.0.1:27017/erp-portal. (If deployed on Railway/Render, ensure MONGO_URI is added in project environment variables).');
+  }
+
+  if (isConnecting) return;
+  isConnecting = true;
+
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/erp-portal');
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    const conn = await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      family: 4
+    });
+
+    console.log(`[MongoDB] Successfully connected to database: ${conn.connection.host}`);
+    isConnecting = false;
 
     // Seed default auth and RBAC data
     await seedDefaultAuthData();
@@ -149,15 +166,29 @@ const connectDB = async () => {
           { name: 'Operations', code: 'OPS', description: 'Operations management' }
         ];
         await Department.insertMany(defaultDepts);
-        console.log('Seeded default departments.');
+        console.log('[MongoDB] Seeded default departments.');
       }
     } catch (seedErr) {
-      console.error('Failed to seed default departments:', seedErr.message);
+      console.error('[MongoDB Warning] Failed to seed default departments:', seedErr.message);
     }
   } catch (error) {
-    console.error(`Database Connection Error: ${error.message}`);
-    throw error;
+    isConnecting = false;
+    console.error(`[Database Connection Error] Failed to connect to MongoDB: ${error.message}`);
+    console.log('[MongoDB] Retrying database connection in 5 seconds...');
+    setTimeout(connectDB, 5000);
   }
 };
+
+mongoose.connection.on('connected', () => {
+  console.log('[MongoDB] Connection state: CONNECTED');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('[MongoDB Error]', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('[MongoDB] Connection state: DISCONNECTED');
+});
 
 module.exports = connectDB;

@@ -284,7 +284,7 @@ export default function EmployeeDashboard() {
     const log = logsMap[key];
     const cellDate = new Date(activeYear, activeMonth, day);
     const dayOfWeek = cellDate.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isWeekend = dayOfWeek === 0; // Only Sunday is counted as Weekend / Weekly Off
     const isFuture = cellDate > now;
     const isToday = key === todayDateKey;
 

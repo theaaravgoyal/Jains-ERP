@@ -62,6 +62,11 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'ERP Portal server is healthy and running.' });
 });
 
+// Bull-Board Web UI Monitoring Dashboard
+const { serverAdapter } = require('./config/bullBoard');
+app.use('/admin/queues', serverAdapter.getRouter());
+app.use('/api/admin/queues', serverAdapter.getRouter());
+
 // Register Routes both with and without '/api' prefix to be resilient to client config issues
 const routes = [
   { path: '/auth', router: require('./routes/authRoutes') },
@@ -76,6 +81,7 @@ const routes = [
   { path: '/receipts', router: require('./routes/receiptRoutes') },
   { path: '/settings', router: require('./routes/settingsRoutes') },
   { path: '/notifications', router: require('./routes/notificationRoutes') },
+  { path: '/queues', router: require('./routes/queueRoutes') },
   { path: '/employee', router: require('./routes/employee/employeeRoutes') },
   { path: '/employee/leaves', router: require('./routes/employee/leaveRoutes') },
   { path: '/admin', router: require('./routes/admin/adminRoutes') },

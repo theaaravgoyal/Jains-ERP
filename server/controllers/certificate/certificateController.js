@@ -37,6 +37,34 @@ exports.createCertificate = async (req, res, next) => {
       issueDate: issueDate.trim()
     });
 
+    // Enqueue certificate issued notification via BullMQ
+    const notificationService = require('../../services/notificationService');
+    const { addEmailJob } = require('../../queues/queueManager');
+
+    notificationService.create({
+      isAdmin: true,
+      title: 'Certificate Issued',
+      message: `Certificate issued for ${studentName.trim()} (${enrollmentNumber.trim()}) - ${course.trim()}.`,
+      module: 'Academics',
+      type: 'SUCCESS',
+      priority: 'MEDIUM',
+      actionUrl: '/certificates'
+    }).catch(e => console.warn('[CertificateController] Notification enqueue warning:', e.message));
+
+    if (req.body.email) {
+      addEmailJob('certificate-email', {
+        type: 'CERTIFICATE_ISSUED',
+        to: req.body.email,
+        subject: `Your Certificate for ${course.trim()} has been issued`,
+        data: {
+          studentName: studentName.trim(),
+          enrollmentNumber: enrollmentNumber.trim(),
+          course: course.trim(),
+          issueDate: issueDate.trim()
+        }
+      }).catch(e => console.warn('[CertificateController] Email enqueue warning:', e.message));
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Certificate created successfully.',

@@ -2,6 +2,8 @@ const studentService = require('../services/studentService');
 const { sendSuccess } = require('../utils/responseHelper');
 const asyncHandler = require('../utils/asyncHandler');
 const notificationService = require('../services/notificationService');
+const { addEmailJob } = require('../queues/queueManager');
+const cacheHelper = require('../utils/cacheHelper');
 
 /**
  * Student Controller - Handles incoming HTTP requests for Student profiles.
@@ -16,7 +18,7 @@ const createStudent = asyncHandler(async (req, res) => {
   const creatorId = req.user.id || req.user._id;
   const newStudent = await studentService.registerStudent(req.body, creatorId);
 
-  // Dynamic Notifications Center Trigger
+  // Dynamic Notifications Center Trigger via BullMQ
   await notificationService.create({
     title: 'Student Enrolled',
     message: `Student ${newStudent.fullName} (${newStudent.studentId}) registered successfully in ${newStudent.course}.`,
@@ -29,6 +31,25 @@ const createStudent = asyncHandler(async (req, res) => {
     referenceType: 'Student',
     actionUrl: `/fees/students`
   });
+
+  // Enqueue Welcome Email via BullMQ if student email exists
+  if (newStudent.email) {
+    await addEmailJob('student-welcome-email', {
+      type: 'STUDENT_WELCOME',
+      to: newStudent.email,
+      subject: `Welcome to ERP Portal - Enrollment Confirmed for ${newStudent.course}`,
+      data: {
+        studentName: newStudent.fullName,
+        studentId: newStudent.studentId,
+        course: newStudent.course,
+        totalFees: newStudent.totalFees
+      }
+    });
+  }
+
+  // Invalidate cached student summaries and dashboard metrics
+  await cacheHelper.delByPattern('dashboard:*');
+  await cacheHelper.delByPattern('report:*');
 
   return sendSuccess(res, 'Student registered successfully', newStudent, 201);
 });

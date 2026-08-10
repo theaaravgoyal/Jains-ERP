@@ -4,6 +4,7 @@ const installmentRepository = require('../repositories/installmentRepository');
 const paymentRepository = require('../repositories/paymentRepository');
 const receiptRepository = require('../repositories/receiptRepository');
 const activityLogRepository = require('../repositories/activityLogRepository');
+const cacheHelper = require('../utils/cacheHelper');
 
 /**
  * Dashboard Service - Executes high-performance MongoDB Aggregation pipelines
@@ -14,8 +15,10 @@ class DashboardService {
    * Gather summary totals and snapshot counts.
    * @param {Object} queryParams - Filters such as range indicators.
    */
-  async getSummary(queryParams) {
-    const { filterType = 'month', startDate, endDate } = queryParams;
+  async getSummary(queryParams = {}) {
+    const cacheKey = `dashboard:summary:${JSON.stringify(queryParams)}`;
+    return await cacheHelper.remember(cacheKey, 60, async () => {
+      const { filterType = 'month', startDate, endDate } = queryParams;
     
     // A. Gather Students census counts by active status
     const studentStats = await studentRepository.aggregate([
@@ -125,70 +128,74 @@ class DashboardService {
       upcomingDue7Days: upcomingInsts,
       totalReceipts
     };
+    });
   }
 
   /**
    * Fetch statistical aggregates for graphic charts.
    * @param {Object} queryParams - Filters such as range indicators.
    */
-  async getCharts(queryParams) {
-    const now = new Date();
-    
-    // A. Monthly collections trend (last 12 months)
-    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    twelveMonthsAgo.setHours(0,0,0,0);
+  async getCharts(queryParams = {}) {
+    const cacheKey = `dashboard:charts:${JSON.stringify(queryParams)}`;
+    return await cacheHelper.remember(cacheKey, 120, async () => {
+      const now = new Date();
+      
+      // A. Monthly collections trend (last 12 months)
+      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      twelveMonthsAgo.setHours(0,0,0,0);
 
-    const monthlyCollections = await paymentRepository.aggregate([
-      { $match: { paymentDate: { $gte: twelveMonthsAgo } } },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$paymentDate" },
-            month: { $month: "$paymentDate" }
-          },
-          amount: { $sum: "$amount" }
-        }
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } }
-    ]);
+      const monthlyCollections = await paymentRepository.aggregate([
+        { $match: { paymentDate: { $gte: twelveMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$paymentDate" },
+              month: { $month: "$paymentDate" }
+            },
+            amount: { $sum: "$amount" }
+          }
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } }
+      ]);
 
-    // B. Payment mode distributions
-    const modeDistribution = await paymentRepository.aggregate([
-      { $group: { _id: "$paymentMode", amount: { $sum: "$amount" }, count: { $sum: 1 } } }
-    ]);
+      // B. Payment mode distributions
+      const modeDistribution = await paymentRepository.aggregate([
+        { $group: { _id: "$paymentMode", amount: { $sum: "$amount" }, count: { $sum: 1 } } }
+      ]);
 
-    // C. Payment Plan splits (Doughnut chart)
-    const planDistribution = await feePlanRepository.aggregate([
-      { $match: { deletedAt: null } },
-      { $group: { _id: "$paymentPlan", count: { $sum: 1 } } }
-    ]);
+      // C. Payment Plan splits (Doughnut chart)
+      const planDistribution = await feePlanRepository.aggregate([
+        { $match: { deletedAt: null } },
+        { $group: { _id: "$paymentPlan", count: { $sum: 1 } } }
+      ]);
 
-    // D. General Fee status breakdowns (Paid vs Pending vs Overdue)
-    const statusDistribution = await feePlanRepository.aggregate([
-      { $match: { deletedAt: null } },
-      { $group: { _id: "$status", count: { $sum: 1 } } }
-    ]);
+      // D. General Fee status breakdowns (Paid vs Pending vs Overdue)
+      const statusDistribution = await feePlanRepository.aggregate([
+        { $match: { deletedAt: null } },
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+      ]);
 
-    return {
-      monthlyCollections: monthlyCollections.map(item => ({
-        year: item._id.year,
-        month: item._id.month,
-        amount: item.amount
-      })),
-      modeDistribution: modeDistribution.map(item => ({
-        mode: item._id,
-        amount: item.amount,
-        count: item.count
-      })),
-      planDistribution: planDistribution.map(item => ({
-        plan: item._id,
-        count: item.count
-      })),
-      statusDistribution: statusDistribution.map(item => ({
-        status: item._id,
-        count: item.count
-      }))
-    };
+      return {
+        monthlyCollections: monthlyCollections.map(item => ({
+          year: item._id.year,
+          month: item._id.month,
+          amount: item.amount
+        })),
+        modeDistribution: modeDistribution.map(item => ({
+          mode: item._id,
+          amount: item.amount,
+          count: item.count
+        })),
+        planDistribution: planDistribution.map(item => ({
+          plan: item._id,
+          count: item.count
+        })),
+        statusDistribution: statusDistribution.map(item => ({
+          status: item._id,
+          count: item.count
+        }))
+      };
+    });
   }
 
   /**

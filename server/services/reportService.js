@@ -5,6 +5,7 @@ const paymentRepository = require('../repositories/paymentRepository');
 const activityLogRepository = require('../repositories/activityLogRepository');
 const { getStartAndEndDate } = require('../utils/dateHelper');
 const { NotFoundError } = require('../utils/customErrors');
+const cacheHelper = require('../utils/cacheHelper');
 
 /**
  * Report Service - Implements clean high-performance aggregation pipelines
@@ -139,55 +140,57 @@ class ReportService {
    * 1. GET /reports/summary
    */
   async getSummary() {
-    const studentCount = await studentRepository.countActive();
-    
-    // Aggregate sum of total pending balances
-    const feePlanStats = await feePlanRepository.aggregate([
-      { $match: { deletedAt: null } },
-      { $group: { _id: null, totalPending: { $sum: "$remainingAmount" } } }
-    ]);
-    const totalPending = feePlanStats[0]?.totalPending || 0;
-    
-    // Aggregate sum of total overdue balances
-    const overdueStats = await installmentRepository.aggregate([
-      { $match: { deletedAt: null, status: 'OVERDUE' } },
-      { $group: { _id: null, totalOverdue: { $sum: "$remainingAmount" } } }
-    ]);
-    const totalOverdue = overdueStats[0]?.totalOverdue || 0;
+    return await cacheHelper.remember('report:summary', 60, async () => {
+      const studentCount = await studentRepository.countActive();
+      
+      // Aggregate sum of total pending balances
+      const feePlanStats = await feePlanRepository.aggregate([
+        { $match: { deletedAt: null } },
+        { $group: { _id: null, totalPending: { $sum: "$remainingAmount" } } }
+      ]);
+      const totalPending = feePlanStats[0]?.totalPending || 0;
+      
+      // Aggregate sum of total overdue balances
+      const overdueStats = await installmentRepository.aggregate([
+        { $match: { deletedAt: null, status: 'OVERDUE' } },
+        { $group: { _id: null, totalOverdue: { $sum: "$remainingAmount" } } }
+      ]);
+      const totalOverdue = overdueStats[0]?.totalOverdue || 0;
 
-    // Daily and Monthly collections sums
-    const now = new Date();
-    const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
-    const todayEnd = new Date(now); todayEnd.setHours(23,59,59,999);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    monthStart.setHours(0,0,0,0);
+      // Daily and Monthly collections sums
+      const now = new Date();
+      const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+      const todayEnd = new Date(now); todayEnd.setHours(23,59,59,999);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      monthStart.setHours(0,0,0,0);
 
-    const paymentStats = await paymentRepository.aggregate([
-      {
-        $facet: {
-          totalCollection: [
-            { $group: { _id: null, total: { $sum: "$amount" } } }
-          ],
-          todayCollection: [
-            { $match: { paymentDate: { $gte: todayStart, $lte: todayEnd } } },
-            { $group: { _id: null, total: { $sum: "$amount" } } }
-          ],
-          monthCollection: [
-            { $match: { paymentDate: { $gte: monthStart } } },
-            { $group: { _id: null, total: { $sum: "$amount" } } }
-          ]
+      const paymentStats = await paymentRepository.aggregate([
+        {
+          $facet: {
+            totalCollection: [
+              { $group: { _id: null, total: { $sum: "$amount" } } }
+            ],
+            todayCollection: [
+              { $match: { paymentDate: { $gte: todayStart, $lte: todayEnd } } },
+              { $group: { _id: null, total: { $sum: "$amount" } } }
+            ],
+            monthCollection: [
+              { $match: { paymentDate: { $gte: monthStart } } },
+              { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]
+          }
         }
-      }
-    ]);
+      ]);
 
-    return {
-      totalCollection: paymentStats[0]?.totalCollection[0]?.total || 0,
-      totalPending,
-      totalOverdue,
-      todayCollection: paymentStats[0]?.todayCollection[0]?.total || 0,
-      thisMonthCollection: paymentStats[0]?.monthCollection[0]?.total || 0,
-      totalStudents: studentCount
-    };
+      return {
+        totalCollection: paymentStats[0]?.totalCollection[0]?.total || 0,
+        totalPending,
+        totalOverdue,
+        todayCollection: paymentStats[0]?.todayCollection[0]?.total || 0,
+        thisMonthCollection: paymentStats[0]?.monthCollection[0]?.total || 0,
+        totalStudents: studentCount
+      };
+    });
   }
 
   /**

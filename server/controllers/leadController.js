@@ -71,6 +71,34 @@ const createLead = async (req, res) => {
       source,
     });
 
+    // Enqueue Admin notification via BullMQ
+    const notificationService = require('../services/notificationService');
+    const { addEmailJob } = require('../queues/queueManager');
+
+    notificationService.create({
+      isAdmin: true,
+      title: 'New Lead Received',
+      message: `New enquiry received from ${name} (${phone}) for course ${course}.`,
+      module: 'Admissions',
+      type: 'INFO',
+      priority: 'MEDIUM',
+      actionUrl: '/lead'
+    }).catch(e => console.warn('[LeadController] Notification enqueue warning:', e.message));
+
+    // Enqueue candidate acknowledgement email via BullMQ if email provided
+    if (email) {
+      addEmailJob('lead-enquiry-email', {
+        type: 'LEAD_RECEIVED',
+        to: email,
+        subject: `Thank you for your enquiry - ${course}`,
+        data: {
+          name,
+          phone,
+          course
+        }
+      }).catch(e => console.warn('[LeadController] Email enqueue warning:', e.message));
+    }
+
     res.status(201).json({
       success: true,
       message: "Lead saved successfully",

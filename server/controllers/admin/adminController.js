@@ -276,7 +276,7 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
       });
 
       const dayOfWeek = currentDate.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isWeekend = dayOfWeek === 0; // Only Sunday is counted as Weekend / Weekly Off
 
       let status = '-';
       if (record) {

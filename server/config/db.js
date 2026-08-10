@@ -1,3 +1,14 @@
+const dns = require('dns');
+// Set custom reliable DNS servers to avoid ISP DNS / querySrv ENOTFOUND errors
+try {
+  if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+} catch (e) {
+  // Fallback gracefully if setServers is restricted
+}
+
 const mongoose = require('mongoose');
 const Department = require('../models/Department');
 const User = require('../models/User');

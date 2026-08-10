@@ -1,33 +1,40 @@
 const Notification = require('../models/Notification');
+const { addNotificationJob, addEmailJob } = require('../queues/queueManager');
 
 /**
  * Reusable Global Notification Service
- * Exposes core utility to raise notifications from any controller or system job.
+ * Dispatches notifications asynchronously via BullMQ with MongoDB fallback.
  */
 class NotificationService {
   /**
    * Create and dispatch a new notification
    * @param {Object} data - Notification fields
+   * @param {boolean} asyncMode - If true (default), enqueues to BullMQ worker
    */
   async create({
     title,
     message,
-    module,
+    module = 'System',
     type = 'INFO',
     priority = 'MEDIUM',
     referenceId = null,
     referenceType = null,
     createdBy = null,
     targetUser,
+    recipient,
+    senderName = '',
+    isAdmin = false,
     actionUrl = '',
     icon = ''
-  }) {
+  }, asyncMode = true) {
     try {
-      if (!targetUser) {
-        throw new Error('Target user is required to route the notification alert.');
+      const actualTarget = targetUser || recipient;
+
+      if (!actualTarget && !isAdmin) {
+        throw new Error('Target user or recipient is required to route the notification alert.');
       }
 
-      const notification = await Notification.create({
+      const payload = {
         title,
         message,
         module,
@@ -36,15 +43,27 @@ class NotificationService {
         referenceId,
         referenceType,
         createdBy,
-        targetUser,
+        targetUser: actualTarget,
+        recipient: actualTarget,
+        senderName,
+        isAdmin,
         actionUrl,
         icon
-      });
+      };
 
-      // Hook point for socket.io real-time broadcast and high priority email/SMS triggers
-      this.dispatchEvent(notification);
-
-      return notification;
+      if (asyncMode) {
+        // Enqueue to BullMQ worker for async decoupled processing
+        await addNotificationJob('send-notification', {
+          action: 'CREATE_NOTIFICATION',
+          payload
+        });
+        return { success: true, queued: true, ...payload };
+      } else {
+        // Direct synchronous database write
+        const notification = await Notification.create(payload);
+        this.dispatchEvent(notification);
+        return notification;
+      }
     } catch (error) {
       console.error('NotificationService.create error:', error);
       throw error;
@@ -52,21 +71,16 @@ class NotificationService {
   }
 
   /**
-   * Broadcast dispatch logic (future-ready for Socket.io, SSE, push alert hooks)
+   * Broadcast dispatch logic and external triggers
    */
   dispatchEvent(notification) {
-    // 1. Emit via socket.io global listener if attached
-    // Example: global.io?.to(notification.targetUser.toString()).emit('new_notification', notification);
-
-    // 2. Dispatch critical external triggers (Email/SMS/WhatsApp integrations)
     if (notification.priority === 'CRITICAL' || notification.priority === 'HIGH') {
       this.sendExternalAlerts(notification);
     }
   }
 
   async sendExternalAlerts(notification) {
-    // SMS / Email integrations placeholder
-    console.log(`[EXTERNAL DISPATCHER] Dispatching alert to targetUser ${notification.targetUser} with title: ${notification.title}`);
+    console.log(`[NotificationService] High-priority alert for targetUser ${notification.targetUser || notification.recipient}: ${notification.title}`);
   }
 }
 

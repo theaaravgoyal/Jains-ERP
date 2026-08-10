@@ -1,5 +1,7 @@
 const Leave = require('../../models/Leave');
-const Notification = require('../../models/Notification');
+const Employee = require('../../models/Employee');
+const notificationService = require('../../services/notificationService');
+const { addEmailJob } = require('../../queues/queueManager');
 
 // @desc    Get all leave requests
 // @route   GET /api/admin/leaves
@@ -20,13 +22,13 @@ exports.getAllLeaves = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.updateLeaveStatus = async (req, res, next) => {
   try {
-    const { status } = req.body;
+    const { status, remarks = '' } = req.body;
     
     if (!['Approved', 'Rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status value. Must be Approved or Rejected.' });
     }
 
-    const leave = await Leave.findById(req.params.id);
+    const leave = await Leave.findById(req.params.id).populate('employee');
     if (!leave) {
       return res.status(404).json({ success: false, message: 'Leave request not found.' });
     }
@@ -35,13 +37,31 @@ exports.updateLeaveStatus = async (req, res, next) => {
     leave.approvedBy = req.user ? req.user._id : undefined;
     await leave.save();
 
-    // Create notification for employee
-    await Notification.create({
-      recipient: leave.employee,
+    // Create notification for employee via BullMQ
+    await notificationService.create({
+      targetUser: leave.employee?._id || leave.employee,
       senderName: 'Admin',
+      title: `Leave ${status}`,
       message: `Your leave request for ${leave.leaveType} leave has been ${status.toLowerCase()}.`,
-      type: 'leave_result'
+      type: status === 'Approved' ? 'SUCCESS' : 'WARNING',
+      module: 'HR Management',
+      actionUrl: '/employee/leaves'
     });
+
+    // Enqueue email notification via BullMQ
+    if (leave.employee && leave.employee.email) {
+      await addEmailJob('leave-status-email', {
+        type: 'LEAVE_STATUS_UPDATE',
+        to: leave.employee.email,
+        subject: `Leave Request ${status}`,
+        data: {
+          employeeName: `${leave.employee.name} ${leave.employee.lastName || ''}`.trim(),
+          leaveType: leave.leaveType,
+          status,
+          remarks
+        }
+      });
+    }
 
     return res.status(200).json({
       success: true,

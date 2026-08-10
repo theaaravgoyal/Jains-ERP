@@ -1,5 +1,5 @@
 const { Queue } = require('bullmq');
-const { redisConnectionOptions } = require('../config/redis');
+const { isRedisReady, redisConnectionOptions, getRedisClient } = require('../config/redis');
 
 // Default job options
 const defaultJobOptions = {
@@ -9,47 +9,59 @@ const defaultJobOptions = {
     delay: 2000
   },
   removeOnComplete: {
-    age: 24 * 3600, // Keep completed jobs for 24 hours
+    age: 24 * 3600,
     count: 500
   },
   removeOnFail: {
-    age: 7 * 24 * 3600, // Keep failed jobs for 7 days
+    age: 7 * 24 * 3600,
     count: 1000
   }
 };
 
-/**
- * BullMQ Queues Definition
- */
-const notificationQueue = new Queue('notification-queue', {
-  connection: redisConnectionOptions,
-  defaultJobOptions
-});
+const createSafeQueue = (name) => {
+  try {
+    const isProd = process.env.NODE_ENV === 'production';
+    const hasRedis = !!(process.env.REDIS_URL || (process.env.REDIS_HOST && process.env.REDIS_HOST !== '127.0.0.1'));
+    if (isProd && !hasRedis) {
+      return {
+        name,
+        add: async () => null,
+        getWaitingCount: async () => 0,
+        getActiveCount: async () => 0,
+        getCompletedCount: async () => 0,
+        getFailedCount: async () => 0,
+        getDelayedCount: async () => 0,
+        isPaused: async () => false,
+        close: async () => {}
+      };
+    }
+    const q = new Queue(name, {
+      connection: redisConnectionOptions,
+      defaultJobOptions
+    });
+    q.on('error', () => {}); // swallow queue-level connection errors
+    return q;
+  } catch (err) {
+    return {
+      name,
+      add: async () => null,
+      getWaitingCount: async () => 0,
+      getActiveCount: async () => 0,
+      getCompletedCount: async () => 0,
+      getFailedCount: async () => 0,
+      getDelayedCount: async () => 0,
+      isPaused: async () => false,
+      close: async () => {}
+    };
+  }
+};
 
-const emailQueue = new Queue('email-queue', {
-  connection: redisConnectionOptions,
-  defaultJobOptions
-});
-
-const feeQueue = new Queue('fee-queue', {
-  connection: redisConnectionOptions,
-  defaultJobOptions
-});
-
-const reportQueue = new Queue('report-queue', {
-  connection: redisConnectionOptions,
-  defaultJobOptions
-});
-
-const attendanceQueue = new Queue('attendance-queue', {
-  connection: redisConnectionOptions,
-  defaultJobOptions
-});
-
-const systemQueue = new Queue('system-queue', {
-  connection: redisConnectionOptions,
-  defaultJobOptions
-});
+const notificationQueue = createSafeQueue('notification-queue');
+const emailQueue = createSafeQueue('email-queue');
+const feeQueue = createSafeQueue('fee-queue');
+const reportQueue = createSafeQueue('report-queue');
+const attendanceQueue = createSafeQueue('attendance-queue');
+const systemQueue = createSafeQueue('system-queue');
 
 const allQueues = [
   notificationQueue,

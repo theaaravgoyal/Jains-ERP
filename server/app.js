@@ -14,7 +14,7 @@ app.set('trust proxy', true);
 
 // Middlewares
 app.use(compression());
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     // Allow all origins (Vercel, local network, mobile apps, Postman)
     callback(null, true);
@@ -22,8 +22,9 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
-}));
-app.options('*', cors());
+};
+
+app.use(cors(corsOptions));
 
 const securityHeaders = require('./middleware/securityHeadersMiddleware');
 const rateLimiter = require('./middleware/rateLimitMiddleware');

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, LogOut, CheckCheck, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ROUTES } from '../constants/Routes';
 import { feesApi } from '../api/feesApi';
 
@@ -122,17 +122,16 @@ const Navbar = () => {
     <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-4 h-[8vh] shrink-0 shadow-sm shadow-slate-100/40">
       {/* Brand */}
       <div className="flex items-center gap-3">
-        <span className="font-bold text-xl text-slate-700 hidden md:block">
-          JCMS
-        </span>
-        <div className="flex items-center gap-3 md:hidden">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-red to-rose-400 flex items-center justify-center font-bold text-white shadow-md shadow-rose-300/30">
-            EP
-          </div>
-          <span className="font-semibold text-lg tracking-tight text-slate-700">
-            ERP Portal
-          </span>
-        </div>
+        <Link to={ROUTES.DASHBOARD} className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+          <img 
+            src="/jains.svg" 
+            alt="Jains Computers" 
+            className="h-9 md:h-10 w-auto object-contain"
+            onError={(e) => {
+              e.target.onerror = null;
+            }}
+          />
+        </Link>
       </div>
 
       <div className="flex items-center gap-4">

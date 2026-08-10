@@ -130,14 +130,12 @@ const seedDefaultAuthData = async () => {
   }
 };
 
+const DEFAULT_MONGO_URI = 'mongodb://yadavakhil415_db_user:XANHB3uc4LdlhhwQ@ac-c1qxgnd-shard-00-00.dhl6oc8.mongodb.net:27017,ac-c1qxgnd-shard-00-01.dhl6oc8.mongodb.net:27017,ac-c1qxgnd-shard-00-02.dhl6oc8.mongodb.net:27017/attendanceDB?ssl=true&replicaSet=atlas-xhsn04-shard-0&authSource=admin&retryWrites=true&w=majority';
+
 let isConnecting = false;
 
 const connectDB = async () => {
-  const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/erp-portal';
-
-  if (!process.env.MONGO_URI) {
-    console.warn('[MongoDB Warning] MONGO_URI environment variable is not defined. Falling back to local mongodb://127.0.0.1:27017/erp-portal. (If deployed on Railway/Render, ensure MONGO_URI is added in project environment variables).');
-  }
+  const mongoUri = process.env.MONGO_URI || process.env.ATTENDANCE_MONGO_URI || DEFAULT_MONGO_URI;
 
   if (isConnecting) return;
   isConnecting = true;

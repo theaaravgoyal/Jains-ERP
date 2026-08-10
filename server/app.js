@@ -70,7 +70,7 @@ app.get('/health', (req, res) => {
     success: isDbConnected,
     message: isDbConnected ? 'ERP Portal server is healthy and connected to database.' : 'Server is running but MongoDB is not connected.',
     database: isDbConnected ? 'connected' : 'disconnected',
-    mongoConfigured: Boolean(process.env.MONGO_URI),
+    mongoConfigured: true,
     uptime: Math.floor(process.uptime())
   });
 });
@@ -80,7 +80,7 @@ app.get('/api/health', (req, res) => {
     success: isDbConnected,
     message: isDbConnected ? 'ERP Portal server is healthy and connected to database.' : 'Server is running but MongoDB is not connected.',
     database: isDbConnected ? 'connected' : 'disconnected',
-    mongoConfigured: Boolean(process.env.MONGO_URI),
+    mongoConfigured: true,
     uptime: Math.floor(process.uptime())
   });
 });

@@ -133,6 +133,7 @@ const seedDefaultAuthData = async () => {
 const DEFAULT_MONGO_URI = 'mongodb://yadavakhil415_db_user:XANHB3uc4LdlhhwQ@ac-c1qxgnd-shard-00-00.dhl6oc8.mongodb.net:27017,ac-c1qxgnd-shard-00-01.dhl6oc8.mongodb.net:27017,ac-c1qxgnd-shard-00-02.dhl6oc8.mongodb.net:27017/attendanceDB?ssl=true&replicaSet=atlas-xhsn04-shard-0&authSource=admin&retryWrites=true&w=majority';
 
 let isConnecting = false;
+let lastDbError = null;
 
 const connectDB = async () => {
   const mongoUri = process.env.MONGO_URI || process.env.ATTENDANCE_MONGO_URI || DEFAULT_MONGO_URI;
@@ -143,11 +144,11 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      family: 4
+      socketTimeoutMS: 45000
     });
 
     console.log(`[MongoDB] Successfully connected to database: ${conn.connection.host}`);
+    lastDbError = null;
     isConnecting = false;
 
     // Seed default auth and RBAC data
@@ -171,6 +172,7 @@ const connectDB = async () => {
     }
   } catch (error) {
     isConnecting = false;
+    lastDbError = error.message;
     console.error(`[Database Connection Error] Failed to connect to MongoDB: ${error.message}`);
     console.log('[MongoDB] Retrying database connection in 5 seconds...');
     setTimeout(connectDB, 5000);
@@ -178,10 +180,12 @@ const connectDB = async () => {
 };
 
 mongoose.connection.on('connected', () => {
+  lastDbError = null;
   console.log('[MongoDB] Connection state: CONNECTED');
 });
 
 mongoose.connection.on('error', (err) => {
+  lastDbError = err.message;
   console.error('[MongoDB Error]', err.message);
 });
 
@@ -190,3 +194,4 @@ mongoose.connection.on('disconnected', () => {
 });
 
 module.exports = connectDB;
+module.exports.getLastDbError = () => lastDbError;

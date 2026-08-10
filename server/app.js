@@ -62,6 +62,7 @@ app.get('/api', (req, res) => {
 });
 
 const mongoose = require('mongoose');
+const { getLastDbError } = require('./config/db');
 
 // Health Check Route
 app.get('/health', (req, res) => {
@@ -70,6 +71,7 @@ app.get('/health', (req, res) => {
     success: isDbConnected,
     message: isDbConnected ? 'ERP Portal server is healthy and connected to database.' : 'Server is running but MongoDB is not connected.',
     database: isDbConnected ? 'connected' : 'disconnected',
+    dbError: getLastDbError(),
     mongoConfigured: true,
     uptime: Math.floor(process.uptime())
   });
@@ -80,6 +82,7 @@ app.get('/api/health', (req, res) => {
     success: isDbConnected,
     message: isDbConnected ? 'ERP Portal server is healthy and connected to database.' : 'Server is running but MongoDB is not connected.',
     database: isDbConnected ? 'connected' : 'disconnected',
+    dbError: getLastDbError(),
     mongoConfigured: true,
     uptime: Math.floor(process.uptime())
   });

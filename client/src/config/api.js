@@ -1,12 +1,8 @@
 const getBaseUrl = () => {
-  // In development, always use '/api' to allow Vite's local dev server proxy to handle it.
-  // This makes sure proxying works both on localhost and for other local network devices (like mobile phones).
-  if (import.meta.env.DEV) {
-    return '/api';
-  }
-  // In production (e.g. Vercel), use VITE_API_URL env var if available,
-  // otherwise fallback to the production backend server url.
-  return import.meta.env.VITE_API_URL || 'https://erp-portal-production-0cc1.up.railway.app/api';
+  // In development, Vite dev proxy handles '/api' -> 'http://localhost:5000'.
+  // In production (Vercel), Vercel rewrites proxy '/api' -> 'https://erp-portal-production-0cc1.up.railway.app/api'.
+  // Using a relative path eliminates browser DNS resolution of Railway domain on mobile/5G networks.
+  return import.meta.env.VITE_API_URL || '/api';
 };
 
 export const API_CONFIG = {

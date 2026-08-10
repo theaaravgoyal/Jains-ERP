@@ -2,13 +2,27 @@
   "name": "erp-portal-root",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "server"
+  ],
   "scripts": {
-    "postinstall": "npm install --prefix server",
-    "build": "npm install --prefix server",
     "start": "cd server && node server.js",
     "dev": "concurrently \"npm run dev --prefix client\" \"npm run dev --prefix server\""
   },
   "dependencies": {
-    "concurrently": "^8.2.2"
+    "@bull-board/api": "^8.6.0",
+    "@bull-board/express": "^8.6.0",
+    "@bull-board/ui": "^8.6.0",
+    "bcryptjs": "^3.0.3",
+    "bullmq": "^6.0.9",
+    "compression": "^1.8.1",
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "ioredis": "^6.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.7.4",
+    "nodemailer": "^9.0.5"
   }
 }

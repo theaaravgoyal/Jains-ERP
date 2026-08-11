@@ -1,6 +1,25 @@
-import axiosInstance from '../../../api/axios';
+import axios from 'axios';
 
-const leadAxios = axiosInstance;
+// Dedicated axios instance for Lead Management pointing to https://api.jainscomputer.com/api
+const leadAxios = axios.create({
+  baseURL: 'https://api.jainscomputer.com/api',
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Attach auth token if available
+leadAxios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export const leadApi = {
   getLeads: async () => {

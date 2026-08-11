@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/api/:match*",
-      "destination": "https://api.jainsworkspace.com/api/:match*"
+      "destination": "https://erp-portal-production-0cc1.up.railway.app/api/:match*"
     },
     {
       "source": "/uploads/:match*",
-      "destination": "https://api.jainsworkspace.com/uploads/:match*"
+      "destination": "https://erp-portal-production-0cc1.up.railway.app/uploads/:match*"
     },
     {
       "source": "/(.*)",

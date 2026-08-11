@@ -1,6 +1,6 @@
 const getBaseUrl = () => {
   // In development, Vite dev proxy handles '/api' -> 'http://localhost:5000'.
-  // In production (Vercel), Vercel rewrites proxy '/api' -> 'https://api.jainsworkspace.com/api'.
+  // In production (Vercel), Vercel rewrites proxy '/api' -> 'https://erp-portal-production-0cc1.up.railway.app/api'.
   // Using a relative path eliminates browser DNS resolution issues.
   return import.meta.env.VITE_API_URL || '/api';
 };

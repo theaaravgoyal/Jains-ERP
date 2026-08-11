@@ -31,7 +31,7 @@ const triggerOverdueCheck = asyncHandler(async (req, res) => {
     triggeredBy: req.user?.id || 'manual'
   });
 
-  return sendSuccess(res, 'Overdue installment check job enqueued', { jobId: job.id }, 202);
+  return sendSuccess(res, 'Overdue installment check job enqueued', { jobId: job?.id || 'processed-fallback' }, 202);
 });
 
 /**
@@ -48,7 +48,7 @@ const triggerCacheClean = asyncHandler(async (req, res) => {
     job = await addSystemJob('system-cleanup', { action: 'CLEANUP_OLD_CACHES' });
   }
 
-  return sendSuccess(res, 'System cleanup job enqueued', { jobId: job.id }, 202);
+  return sendSuccess(res, 'System cleanup job enqueued', { jobId: job?.id || 'processed-fallback' }, 202);
 });
 
 /**
@@ -59,7 +59,7 @@ const triggerReportWarm = asyncHandler(async (req, res) => {
   const { reportType = 'SUMMARY' } = req.body;
   const job = await addReportJob('warm-report', { reportType });
 
-  return sendSuccess(res, 'Report cache warming job enqueued', { jobId: job.id }, 202);
+  return sendSuccess(res, 'Report cache warming job enqueued', { jobId: job?.id || 'processed-fallback' }, 202);
 });
 
 module.exports = {

@@ -40,9 +40,17 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // HTTP Request Logger Middleware
 app.use(loggerMiddleware);
 
+const fs = require('fs');
+
+// Ensure uploads folder exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Serve static uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
+app.use('/api/uploads', express.static(uploadsDir));
 
 // Root Route
 app.get('/', (req, res) => {

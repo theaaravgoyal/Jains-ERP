@@ -77,33 +77,35 @@ export default function EmployeeDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const fetchStatus = async () => {
+  const fetchStatus = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await employeeApi.getTodayAttendance();
       if (res.success) {
         setTodayRecord(res.todayRecord);
         setHistory(res.history || []);
       }
     } catch (err) {
-      console.error('Failed to load status:', err);
-      setError('Failed to sync today\'s status.');
+      if (!silent) {
+        console.error('Failed to load status:', err);
+        setError('Failed to sync today\'s status.');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  const fetchLeaves = async () => {
+  const fetchLeaves = async (silent = false) => {
     try {
-      setLeaveLoading(true);
+      if (!silent) setLeaveLoading(true);
       const res = await employeeApi.getMyLeaves();
       if (res.success) {
         setLeavesList(res.leaves || []);
       }
     } catch (err) {
-      console.error('Failed to load leaves:', err);
+      if (!silent) console.error('Failed to load leaves:', err);
     } finally {
-      setLeaveLoading(false);
+      if (!silent) setLeaveLoading(false);
     }
   };
 
@@ -121,7 +123,7 @@ export default function EmployeeDashboard() {
   const handleMarkNotificationsRead = async () => {
     try {
       await employeeApi.markNotificationsRead();
-      fetchNotifications();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (err) {
       console.error('Failed to mark notifications read:', err);
     }
@@ -135,6 +137,27 @@ export default function EmployeeDashboard() {
     fetchStatus();
     fetchLeaves();
     fetchNotifications();
+
+    // Auto-sync in background every 6 seconds for real-time live updates without manual page reload
+    const interval = setInterval(() => {
+      fetchStatus(true);
+      fetchLeaves(true);
+      fetchNotifications();
+    }, 6000);
+
+    const onFocus = () => {
+      fetchStatus(true);
+      fetchLeaves(true);
+      fetchNotifications();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
   }, [employeeToken, navigate]);
 
   const handleCheckIn = async () => {
@@ -377,44 +400,59 @@ export default function EmployeeDashboard() {
             <div className="relative">
               <button 
                 onClick={() => {
-                  setShowNotifications(!showNotifications);
-                  if (!showNotifications) {
+                  const nextState = !showNotifications;
+                  setShowNotifications(nextState);
+                  if (nextState && notifications.some(n => !n.isRead)) {
                     handleMarkNotificationsRead();
                   }
                 }}
-                className="p-2 text-slate-400 hover:text-slate-655 rounded-full hover:bg-slate-50 transition-colors bg-transparent border-0 flex items-center justify-center relative cursor-pointer outline-none"
+                className="p-2 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors bg-transparent border-0 flex items-center justify-center relative cursor-pointer outline-none"
+                title="Notifications"
               >
-                <Bell size={18} />
-                {notifications.some(n => !n.isRead) && (
-                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-brand-red rounded-full animate-pulse" />
+                <Bell size={19} />
+                {notifications.filter(n => !n.isRead).length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-red-600 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">
+                    {notifications.filter(n => !n.isRead).length > 9 ? '9+' : notifications.filter(n => !n.isRead).length}
+                  </span>
                 )}
               </button>
 
               {/* Notification Dropdown Panel */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-64 bg-white border border-[#E8E6E1] rounded-2xl shadow-xl z-50 p-3.5 space-y-2.5 max-h-72 overflow-y-auto">
-                  <div className="flex justify-between items-center pb-2 border-b border-[#FAF9F6]">
-                    <span className="text-xs font-bold text-slate-800">Notifications</span>
-                    {notifications.some(n => !n.isRead) && (
+                <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 p-3.5 space-y-2.5 max-h-80 overflow-y-auto animate-fade-in">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-800">Notifications</span>
+                      {notifications.filter(n => !n.isRead).length > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 font-extrabold">
+                          {notifications.filter(n => !n.isRead).length} new
+                        </span>
+                      )}
+                    </div>
+                    {notifications.length > 0 && (
                       <button 
                         onClick={handleMarkNotificationsRead}
-                        className="text-[10px] font-bold text-[#E31C1C] hover:underline cursor-pointer border-0 bg-transparent"
+                        className="text-[10px] font-bold text-red-600 hover:underline cursor-pointer border-0 bg-transparent"
                       >
-                        Clear All
+                        Mark all read
                       </button>
                     )}
                   </div>
                   <div className="space-y-2">
                     {notifications.length === 0 ? (
-                      <p className="text-[10px] text-slate-400 py-4 text-center font-bold">No notifications yet</p>
+                      <p className="text-[11px] text-slate-400 py-6 text-center font-medium">No notifications yet</p>
                     ) : (
                       notifications.map(n => (
-                        <div key={n._id} className={`p-2.5 rounded-xl text-[10px] leading-tight ${n.isRead ? 'bg-[#FAF9F6] text-slate-600' : 'bg-rose-50/50 text-slate-850 font-bold border border-rose-100/30'}`}>
-                          <div className="flex justify-between items-center mb-0.5">
-                            <span className="text-brand-red font-black uppercase text-[8px] tracking-wide">{n.senderName}</span>
-                            <span className="text-slate-400 text-[8px]">{formatDate(n.createdAt)}</span>
+                        <div key={n._id} className={`p-2.5 rounded-xl text-[11px] leading-snug transition-all ${n.isRead ? 'bg-slate-50 text-slate-600' : 'bg-red-50/60 text-slate-800 font-medium border border-red-100/50'}`}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-red-600 font-extrabold uppercase text-[9px] tracking-wide">
+                              {n.title || n.senderName || 'Notification'}
+                            </span>
+                            <span className="text-slate-400 text-[9px]">
+                              {formatDate(n.createdAt)}
+                            </span>
                           </div>
-                          <p className="mt-0.5">{n.message}</p>
+                          <p className="text-[11px] text-slate-700 leading-normal">{n.message}</p>
                         </div>
                       ))
                     )}

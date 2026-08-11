@@ -37,16 +37,23 @@ exports.updateLeaveStatus = async (req, res, next) => {
     leave.approvedBy = req.user ? req.user._id : undefined;
     await leave.save();
 
-    // Create notification for employee via BullMQ
-    await notificationService.create({
-      targetUser: leave.employee?._id || leave.employee,
-      senderName: 'Admin',
-      title: `Leave ${status}`,
-      message: `Your leave request for ${leave.leaveType} leave has been ${status.toLowerCase()}.`,
-      type: status === 'Approved' ? 'SUCCESS' : 'WARNING',
-      module: 'HR Management',
-      actionUrl: '/employee/leaves'
-    });
+    // Create notification for employee
+    try {
+      const empId = leave.employee?._id || leave.employee;
+      await Notification.create({
+        recipient: empId,
+        targetUser: empId,
+        senderName: 'Admin',
+        title: `Leave ${status}`,
+        message: `Your ${leave.leaveType || ''} leave request (${new Date(leave.startDate).toLocaleDateString('en-IN')} - ${new Date(leave.endDate).toLocaleDateString('en-IN')}) has been ${status.toLowerCase()}.${remarks ? ` Note: ${remarks}` : ''}`,
+        type: status === 'Approved' ? 'SUCCESS' : 'WARNING',
+        module: 'Attendance',
+        priority: 'HIGH',
+        actionUrl: '/employee'
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch leave notification:', notifErr.message);
+    }
 
     // Enqueue email notification via BullMQ
     if (leave.employee && leave.employee.email) {

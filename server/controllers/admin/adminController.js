@@ -39,6 +39,22 @@ exports.approveEmployee = async (req, res, next) => {
     employee.status = 'approved';
     await employee.save();
 
+    // Create notification for employee
+    try {
+      await Notification.create({
+        recipient: employee._id,
+        targetUser: employee._id,
+        senderName: 'System Admin',
+        title: 'Account Approved',
+        message: 'Congratulations! Your employee account has been approved by the Admin. You can now access your attendance portal.',
+        type: 'ACCOUNT_APPROVED',
+        module: 'Attendance',
+        priority: 'HIGH'
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch employee approval notification:', notifErr.message);
+    }
+
     return res.status(200).json({ success: true, message: 'Employee approved successfully.', employee });
   } catch (err) {
     next(err);
@@ -371,6 +387,31 @@ exports.markHoliday = async (req, res, next) => {
           remarks: reason || 'System Holiday'
         });
       }
+    }
+
+    // Broadcast holiday notification to all active employees
+    try {
+      const holidayDateFormatted = new Date(holiday.date).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+      const notificationsToInsert = employees.map((emp) => ({
+        recipient: emp._id,
+        targetUser: emp._id,
+        senderName: 'Admin',
+        title: 'Holiday Announcement',
+        message: `Official Holiday declared on ${holidayDateFormatted} (${holiday.reason || 'Holiday'}). Attendance is excused.`,
+        type: 'HOLIDAY_ANNOUNCEMENT',
+        module: 'Attendance',
+        priority: 'MEDIUM'
+      }));
+
+      if (notificationsToInsert.length > 0) {
+        await Notification.insertMany(notificationsToInsert);
+      }
+    } catch (notifErr) {
+      console.warn('Failed to broadcast holiday notifications:', notifErr.message);
     }
 
     return res.status(200).json({

@@ -56,9 +56,9 @@ export default function Attendance() {
   const [editFormProfilePicture, setEditFormProfilePicture] = useState('');
   const [editFormError, setEditFormError] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError('');
       
       const [pendingRes, summaryRes, activeRes, statsRes, leavesRes] = await Promise.all([
@@ -75,16 +75,34 @@ export default function Attendance() {
       if (statsRes.success) setChartStats(statsRes.stats || []);
       if (leavesRes && leavesRes.success) setLeaveRequests(leavesRes.leaves || []);
     } catch (err) {
-      console.error('Failed to fetch attendance dashboard data:', err);
-      const errMsg = err.response?.data?.message || err.message || 'Failed to sync attendance logbooks with server.';
-      setError(`Failed to sync attendance logbooks: ${errMsg}`);
+      if (!silent) {
+        console.error('Failed to fetch attendance dashboard data:', err);
+        const errMsg = err.response?.data?.message || err.message || 'Failed to sync attendance logbooks with server.';
+        setError(`Failed to sync attendance logbooks: ${errMsg}`);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
+    // Auto-refresh in background every 8 seconds for real-time live updates without manual reload
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 8000);
+
+    const onFocus = () => {
+      fetchData(true);
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
   }, []);
 
   useEffect(() => {

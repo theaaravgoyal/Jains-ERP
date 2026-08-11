@@ -70,9 +70,18 @@ const Navbar = () => {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll notifications every 30 seconds for live feel
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    // Poll notifications every 10 seconds for real-time live feel
+    const interval = setInterval(fetchNotifications, 10000);
+
+    const onFocus = () => fetchNotifications();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
   }, []);
 
   useEffect(() => {

@@ -203,8 +203,17 @@ exports.updateEmployeeProfile = async (req, res, next) => {
 // @access  Private
 exports.getEmployeeNotifications = async (req, res, next) => {
   try {
-    const notifications = await Notification.find({ recipient: req.employee._id }).sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, notifications });
+    const empId = req.employee._id;
+    const notifications = await Notification.find({
+      $or: [
+        { recipient: empId },
+        { targetUser: empId }
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+    return res.status(200).json({ success: true, notifications, unreadCount });
   } catch (err) {
     next(err);
   }
@@ -215,7 +224,17 @@ exports.getEmployeeNotifications = async (req, res, next) => {
 // @access  Private
 exports.markEmployeeNotificationsRead = async (req, res, next) => {
   try {
-    await Notification.updateMany({ recipient: req.employee._id, isRead: false }, { isRead: true });
+    const empId = req.employee._id;
+    await Notification.updateMany(
+      {
+        $or: [
+          { recipient: empId },
+          { targetUser: empId }
+        ],
+        isRead: false
+      },
+      { isRead: true, readAt: new Date() }
+    );
     return res.status(200).json({ success: true, message: 'All notifications marked as read.' });
   } catch (err) {
     next(err);

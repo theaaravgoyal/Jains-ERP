@@ -37,10 +37,14 @@ export const EmployeeAuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Employee Login error:', error);
-      const isNetworkError = !error.response;
-      const message = isNetworkError
-        ? 'Cannot reach the server. Please check your internet connection and try again.'
-        : (error.response?.data?.message || 'Invalid email or password.');
+      let message = 'Invalid email or password.';
+      if (!error.response) {
+        message = 'Cannot reach the server. Please check if backend is running.';
+      } else if (error.response.status === 502 || error.response.status === 503 || error.response.status === 504) {
+        message = 'Backend server is not running or unreachable (502 Bad Gateway).';
+      } else if (error.response.data?.message) {
+        message = error.response.data.message;
+      }
       return { success: false, error: message };
     }
   }, []);

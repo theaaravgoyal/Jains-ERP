@@ -8,8 +8,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://erp-portal-production-0cc1.up.railway.app',
         changeOrigin: true,
+        secure: false,
       }
     }
   },

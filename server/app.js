@@ -15,12 +15,16 @@ app.set('trust proxy', true);
 // Middlewares
 app.use(compression());
 
+const configuredFrontend = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+
 const allowedOrigins = [
   'https://erp-portal-pi.vercel.app',
   'https://jainsworkspace.com',
   'https://www.jainsworkspace.com',
   'https://api.jainsworkspace.com',
   'https://cms.jainscomputer.com',
+  'https://api.jainscomputer.com',
+  'https://erp.jainscomputer.com',
   'https://jainscomputer.com',
   'https://www.jainscomputer.com',
   'https://attendance-app-xi-sand.vercel.app',
@@ -31,21 +35,35 @@ const allowedOrigins = [
   'http://127.0.0.1:3000'
 ];
 
+if (configuredFrontend && !allowedOrigins.includes(configuredFrontend)) {
+  allowedOrigins.push(configuredFrontend);
+}
+
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow non-browser callers (curl, mobile, webhooks, server-to-server)
     if (!origin) return callback(null, true);
 
-    if (
-      allowedOrigins.includes(origin) ||
-      /\.vercel\.app$/.test(new URL(origin).hostname) ||
-      /localhost/.test(origin) ||
-      /127\.0\.0\.1/.test(origin)
-    ) {
-      return callback(null, true);
+    try {
+      const parsedUrl = new URL(origin);
+      const hostname = parsedUrl.hostname;
+
+      if (
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes(parsedUrl.origin) ||
+        hostname.endsWith('.vercel.app') ||
+        hostname.endsWith('.jainscomputer.com') ||
+        hostname.endsWith('.jainsworkspace.com') ||
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1'
+      ) {
+        return callback(null, true);
+      }
+    } catch (e) {
+      // Invalid URL format
     }
 
-    return callback(null, true);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

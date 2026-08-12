@@ -46,8 +46,34 @@ exports.applyLeave = async (req, res, next) => {
 // @access  Private (Employee)
 exports.getMyLeaves = async (req, res, next) => {
   try {
+    const Settings = require('../../models/Settings');
+    const settings = await Settings.findOne();
+    const monthlyQuota = settings?.attendance?.monthlyPaidLeavesQuota ?? 2;
+
     const leaves = await Leave.find({ employee: req.employee._id }).sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, leaves });
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const approvedThisMonth = await Leave.find({
+      employee: req.employee._id,
+      status: 'Approved',
+      startDate: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+
+    const paidLeavesUsedThisMonth = approvedThisMonth.reduce((acc, l) => acc + (l.paidDaysCount || 0), 0);
+    const unpaidLeavesThisMonth = approvedThisMonth.reduce((acc, l) => acc + (l.unpaidDaysCount || 0), 0);
+    const paidLeavesRemaining = Math.max(0, monthlyQuota - paidLeavesUsedThisMonth);
+
+    return res.status(200).json({
+      success: true,
+      leaves,
+      monthlyQuota,
+      paidLeavesUsedThisMonth,
+      unpaidLeavesThisMonth,
+      paidLeavesRemaining
+    });
   } catch (err) {
     next(err);
   }

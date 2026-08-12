@@ -53,6 +53,18 @@ export default function EmployeeDashboard() {
   const [leaveReason, setLeaveReason] = useState('');
   const [leaveFormError, setLeaveFormError] = useState('');
   const [leaveFormSuccess, setLeaveFormSuccess] = useState('');
+  const [leaveQuotaInfo, setLeaveQuotaInfo] = useState({
+    monthlyQuota: 2,
+    paidLeavesUsedThisMonth: 0,
+    unpaidLeavesThisMonth: 0,
+    paidLeavesRemaining: 2
+  });
+  const [shiftSettings, setShiftSettings] = useState({
+    officeStartTime: '10:00',
+    officeEndTime: '18:00',
+    lateThresholdTime: '10:15',
+    halfDayThresholdHours: 4.0
+  });
 
   // Profile Edit States
   const [editProfileMode, setEditProfileMode] = useState(false);
@@ -88,6 +100,9 @@ export default function EmployeeDashboard() {
       if (res.success) {
         setTodayRecord(res.todayRecord);
         setHistory(res.history || []);
+        if (res.settings) {
+          setShiftSettings(res.settings);
+        }
       }
     } catch (err) {
       if (!silent) {
@@ -106,6 +121,12 @@ export default function EmployeeDashboard() {
       const res = await employeeApi.getMyLeaves();
       if (res.success) {
         setLeavesList(res.leaves || []);
+        setLeaveQuotaInfo({
+          monthlyQuota: res.monthlyQuota ?? 2,
+          paidLeavesUsedThisMonth: res.paidLeavesUsedThisMonth ?? 0,
+          unpaidLeavesThisMonth: res.unpaidLeavesThisMonth ?? 0,
+          paidLeavesRemaining: res.paidLeavesRemaining ?? 2
+        });
       }
     } catch (err) {
       if (!silent) console.error('Failed to load leaves:', err);
@@ -843,6 +864,14 @@ export default function EmployeeDashboard() {
                 <form onSubmit={handleApplyLeave} className="space-y-4 pt-1 animate-fade-in">
                   <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">New Leave Application</h3>
                   
+                  {/* Quota hint */}
+                  <div className="bg-emerald-50 border border-emerald-100 p-2.5 rounded-xl text-[11px] font-bold text-emerald-800 flex items-center justify-between">
+                    <span>Monthly Paid Leave Balance:</span>
+                    <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-200 text-emerald-700">
+                      {leaveQuotaInfo.paidLeavesRemaining} of {leaveQuotaInfo.monthlyQuota} Paid Days Remaining
+                    </span>
+                  </div>
+
                   {leaveFormError && (
                     <div className="bg-rose-50 border border-rose-100 text-brand-red text-[11px] font-bold p-2.5 rounded-xl flex items-center gap-1.5">
                       <AlertCircle size={13} className="shrink-0" />
@@ -926,6 +955,32 @@ export default function EmployeeDashboard() {
               ) : (
                 /* Leaves History List Screen */
                 <div className="space-y-3.5">
+                  {/* Monthly Leave Quota Card */}
+                  <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-3.5 text-white shadow-sm space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100">
+                        Monthly Leave Policy
+                      </span>
+                      <span className="text-[10px] font-extrabold bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-xs">
+                        {leaveQuotaInfo.monthlyQuota} Paid / Month
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-white/20">
+                      <div className="bg-white/10 p-2 rounded-xl">
+                        <span className="text-[8px] font-extrabold uppercase text-emerald-100 block">Available</span>
+                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo.paidLeavesRemaining}</strong>
+                      </div>
+                      <div className="bg-white/10 p-2 rounded-xl">
+                        <span className="text-[8px] font-extrabold uppercase text-emerald-100 block">Paid Used</span>
+                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo.paidLeavesUsedThisMonth}</strong>
+                      </div>
+                      <div className="bg-white/10 p-2 rounded-xl">
+                        <span className="text-[8px] font-extrabold uppercase text-emerald-100 block">Unpaid / LOP</span>
+                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo.unpaidLeavesThisMonth}</strong>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="space-y-0.5">
                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Leave Applications</h3>
                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Status of applied leaves</p>
@@ -965,6 +1020,20 @@ export default function EmployeeDashboard() {
                             </span>
                           </div>
 
+                          {/* Allocation badge if approved */}
+                          {item.status === 'Approved' && (
+                            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                              <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {item.paidDaysCount ?? 0} Paid Day(s)
+                              </span>
+                              {(item.unpaidDaysCount || 0) > 0 && (
+                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200">
+                                  +{item.unpaidDaysCount} Unpaid (Loss of Pay)
+                                </span>
+                              )}
+                            </div>
+                          )}
+
                           <div className="text-[10px] text-slate-450 space-y-1">
                             <div className="flex justify-between">
                               <span>Duration</span>
@@ -976,6 +1045,12 @@ export default function EmployeeDashboard() {
                               <span className="text-[8px] text-slate-400 uppercase tracking-wide">Reason</span>
                               <p className="text-slate-650 leading-relaxed italic">{item.reason}</p>
                             </div>
+                            {item.adminRemarks && (
+                              <div className="pt-1 border-t border-slate-50 flex flex-col gap-0.5 text-brand-red">
+                                <span className="text-[8px] uppercase tracking-wide font-bold">Admin Note</span>
+                                <p className="text-[10px] leading-relaxed font-semibold">{item.adminRemarks}</p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}

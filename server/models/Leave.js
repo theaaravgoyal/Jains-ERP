@@ -29,6 +29,18 @@ const LeaveSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please specify a reason for leave']
     },
+    paidDaysCount: {
+      type: Number,
+      default: 0
+    },
+    unpaidDaysCount: {
+      type: Number,
+      default: 0
+    },
+    adminRemarks: {
+      type: String,
+      default: ''
+    },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

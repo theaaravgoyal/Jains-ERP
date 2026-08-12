@@ -57,6 +57,27 @@ export default function Attendance() {
   const [editFormProfilePicture, setEditFormProfilePicture] = useState('');
   const [editFormError, setEditFormError] = useState('');
 
+  // Shift & Office Timings State
+  const [attendanceSettings, setAttendanceSettings] = useState({
+    officeStartTime: '10:00',
+    officeEndTime: '18:00',
+    lateThresholdTime: '10:15',
+    halfDayThresholdHours: 4.0,
+    fullDayThresholdHours: 8.0,
+    monthlyPaidLeavesQuota: 2
+  });
+  const [showTimingModal, setShowTimingModal] = useState(false);
+  const [timingFormData, setTimingFormData] = useState({
+    officeStartTime: '10:00',
+    officeEndTime: '18:00',
+    lateThresholdTime: '10:15',
+    halfDayThresholdHours: 4.0,
+    fullDayThresholdHours: 8.0,
+    monthlyPaidLeavesQuota: 2
+  });
+  const [timingLoading, setTimingLoading] = useState(false);
+  const [timingError, setTimingError] = useState('');
+
   const isFetchingRef = useRef(false);
 
   const fetchData = async (silent = false) => {
@@ -66,19 +87,24 @@ export default function Attendance() {
       if (!silent) setLoading(true);
       setError('');
       
-      const [pendingRes, summaryRes, activeRes, statsRes, leavesRes] = await Promise.all([
+      const [pendingRes, summaryRes, activeRes, statsRes, leavesRes, settingsRes] = await Promise.all([
         adminAttendanceApi.getPendingApprovals(),
         adminAttendanceApi.getDailySummary(),
         adminAttendanceApi.getActiveEmployees(),
         adminAttendanceApi.getAttendanceStats(),
-        adminAttendanceApi.getAllLeaves()
+        adminAttendanceApi.getAllLeaves(),
+        adminAttendanceApi.getAttendanceSettings().catch(() => null)
       ]);
       
-      if (pendingRes.success) setPendingApprovals(pendingRes.pending || []);
-      if (summaryRes.success) setDailySummary(summaryRes.summary || []);
-      if (activeRes.success) setActiveEmployees(activeRes.employees || []);
-      if (statsRes.success) setChartStats(statsRes.stats || []);
-      if (leavesRes && leavesRes.success) setLeaveRequests(leavesRes.leaves || []);
+      if (pendingRes?.success) setPendingApprovals(pendingRes.pending || []);
+      if (summaryRes?.success) setDailySummary(summaryRes.summary || []);
+      if (activeRes?.success) setActiveEmployees(activeRes.employees || []);
+      if (statsRes?.success) setChartStats(statsRes.stats || []);
+      if (leavesRes?.success) setLeaveRequests(leavesRes.leaves || []);
+      if (settingsRes?.success && settingsRes.settings) {
+        setAttendanceSettings(settingsRes.settings);
+        setTimingFormData(settingsRes.settings);
+      }
     } catch (err) {
       if (!silent) {
         console.error('Failed to fetch attendance dashboard data:', err);
@@ -176,14 +202,33 @@ export default function Attendance() {
     }
   };
 
-  const handleApproveLeave = async (id) => {
+  const handleSaveAttendanceSettings = async (e) => {
+    e.preventDefault();
+    setTimingError('');
+    setTimingLoading(true);
+    try {
+      const res = await adminAttendanceApi.updateAttendanceSettings(timingFormData);
+      if (res.success) {
+        setAttendanceSettings(res.settings);
+        setShowTimingModal(false);
+        setSuccess('Shift and Attendance timings updated successfully.');
+        await fetchData(true);
+      }
+    } catch (err) {
+      setTimingError(err.response?.data?.message || 'Failed to update attendance timings.');
+    } finally {
+      setTimingLoading(false);
+    }
+  };
+
+  const handleApproveLeave = async (id, remarks = '') => {
     setActionLoading(true);
     setError('');
     setSuccess('');
     try {
-      const res = await adminAttendanceApi.updateLeaveStatus(id, 'Approved');
+      const res = await adminAttendanceApi.updateLeaveStatus(id, 'Approved', remarks);
       if (res.success) {
-        setSuccess('Leave request approved successfully.');
+        setSuccess(res.message || 'Leave request approved successfully.');
         await fetchData();
       }
     } catch (err) {
@@ -491,7 +536,8 @@ export default function Attendance() {
     let presents = 0;
     let lates = 0;
     let absents = 0;
-    let leaves = 0;
+    let paidLeaves = 0;
+    let unpaidLeaves = 0;
     let weekends = 0;
     let holidays = 0;
     let halfDays = 0;
@@ -500,13 +546,14 @@ export default function Attendance() {
       if (day.status === 'Present') presents++;
       else if (day.status === 'Late') lates++;
       else if (day.status === 'Absent') absents++;
-      else if (day.status === 'Leave') leaves++;
+      else if (day.status === 'Paid Leave' || day.status === 'Leave') paidLeaves++;
+      else if (day.status === 'Unpaid Leave') unpaidLeaves++;
       else if (day.status === 'Weekend') weekends++;
       else if (day.status === 'Holiday') holidays++;
       else if (day.status === 'Half Day') halfDays++;
     });
 
-    return { presents, lates, absents, leaves, weekends, holidays, halfDays };
+    return { presents, lates, absents, paidLeaves, unpaidLeaves, weekends, holidays, halfDays };
   }, [reportData]);
 
   // Export to Excel
@@ -623,10 +670,38 @@ export default function Attendance() {
 
         {/* Shift timing display */}
         <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end hidden sm:flex bg-[#FAF9F6] border border-[#E8E6E1] py-2 px-4 rounded-xl shadow-xs">
-            <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Office Timings</span>
-            <span className="text-sm font-extrabold text-slate-800 mt-0.5">10:00 AM to 06:00 PM</span>
+          <div 
+            onClick={() => {
+              setTimingFormData({ ...attendanceSettings });
+              setShowTimingModal(true);
+            }}
+            className="flex flex-col items-end hidden sm:flex bg-[#FAF9F6] hover:bg-slate-50 border border-[#E8E6E1] py-1.5 px-3.5 rounded-xl shadow-xs cursor-pointer transition-all group"
+            title="Click to edit shift timings & leave quota"
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Office Shift</span>
+              <span className="text-[9px] text-brand-red font-bold group-hover:underline flex items-center gap-0.5">
+                • Edit
+              </span>
+            </div>
+            <span className="text-xs font-extrabold text-slate-800 mt-0.5">
+              {formatTime(attendanceSettings.officeStartTime)} to {formatTime(attendanceSettings.officeEndTime)}
+              <span className="text-[10px] text-slate-400 font-semibold ml-1.5">(Half-Day &lt;{attendanceSettings.halfDayThresholdHours}h)</span>
+            </span>
           </div>
+
+          <button
+            onClick={() => {
+              setTimingFormData({ ...attendanceSettings });
+              setShowTimingModal(true);
+            }}
+            className="py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs flex items-center gap-1.5 sm:hidden"
+            title="Configure Timings"
+          >
+            <Clock size={13} className="text-slate-500" />
+            <span>Timings</span>
+          </button>
+
           <button
             onClick={() => {
               setShowHolidayModal(true);
@@ -984,6 +1059,7 @@ export default function Attendance() {
                             <th className="pb-3">Employee</th>
                             <th className="pb-3">Type</th>
                             <th className="pb-3">Duration</th>
+                            <th className="pb-3">Leave Allocation</th>
                             <th className="pb-3">Reason</th>
                             <th className="pb-3">Status</th>
                             <th className="pb-3 text-right">Actions</th>
@@ -992,7 +1068,7 @@ export default function Attendance() {
                         <tbody className="divide-y divide-[#EBEAE6]">
                           {leaveRequests.length === 0 ? (
                             <tr>
-                              <td colSpan="6" className="py-12 text-center text-slate-500 font-bold text-xs">
+                              <td colSpan="7" className="py-12 text-center text-slate-500 font-bold text-xs">
                                 No leave applications found.
                               </td>
                             </tr>
@@ -1013,9 +1089,14 @@ export default function Attendance() {
                                           {item.employee.name ? item.employee.name[0] : 'E'}
                                         </div>
                                       )}
-                                      <span className="font-bold text-slate-800 text-sm">
-                                        {item.employee.lastName ? `${item.employee.name} ${item.employee.lastName}` : item.employee.name}
-                                      </span>
+                                      <div className="flex flex-col">
+                                        <span className="font-bold text-slate-800 text-sm">
+                                          {item.employee.lastName ? `${item.employee.name} ${item.employee.lastName}` : item.employee.name}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-semibold">
+                                          Quota: {item.paidUsedInMonth || 0}/{item.monthlyQuota || 2} Paid Used
+                                        </span>
+                                      </div>
                                     </>
                                   ) : (
                                     <span className="font-bold text-slate-400">Unknown Employee</span>
@@ -1024,6 +1105,24 @@ export default function Attendance() {
                                 <td className="py-3 font-bold text-slate-800 text-xs">{item.leaveType}</td>
                                 <td className="py-3 text-slate-550 text-xs font-semibold">
                                   {formatDate(item.startDate)} - {formatDate(item.endDate)}
+                                </td>
+                                <td className="py-3">
+                                  {item.status === 'Approved' ? (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        {item.paidDaysCount ?? 0} Paid Day(s)
+                                      </span>
+                                      {(item.unpaidDaysCount || 0) > 0 && (
+                                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                                          +{item.unpaidDaysCount} Unpaid (LOP)
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-500 italic">
+                                      Pending Approval
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="py-3">
                                   <button
@@ -1055,18 +1154,20 @@ export default function Attendance() {
                                       <button
                                         onClick={() => handleApproveLeave(item._id)}
                                         disabled={actionLoading}
-                                        className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center cursor-pointer border border-emerald-200 active:scale-90 transition-all border-0 outline-none"
-                                        title="Approve Leave"
+                                        className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center gap-1 cursor-pointer border border-emerald-200 active:scale-95 transition-all outline-none"
+                                        title="Approve Leave (Auto-allocates up to 2 Paid Leaves, rest Unpaid)"
                                       >
                                         <Check size={13} />
+                                        <span>Approve</span>
                                       </button>
                                       <button
                                         onClick={() => handleRejectLeave(item._id)}
                                         disabled={actionLoading}
-                                        className="w-7 h-7 rounded-full bg-rose-50 hover:bg-rose-100 text-brand-red flex items-center justify-center cursor-pointer border border-rose-200 active:scale-90 transition-all border-0 outline-none"
+                                        className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-brand-red font-bold text-xs flex items-center gap-1 cursor-pointer border border-rose-200 active:scale-95 transition-all outline-none"
                                         title="Reject Leave"
                                       >
                                         <X size={13} />
+                                        <span>Reject</span>
                                       </button>
                                     </div>
                                   ) : (
@@ -1632,34 +1733,38 @@ export default function Attendance() {
               ) : (
                 <>
                   {/* Stats Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-7 gap-3">
-                    <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-2xl text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                    <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl text-center">
                       <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider block">Presents</span>
-                      <strong className="text-emerald-700 text-base font-black mt-1.5 block">{reportStats.presents}</strong>
+                      <strong className="text-emerald-700 text-base font-black mt-1 block">{reportStats.presents}</strong>
                     </div>
-                    <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-2xl text-center">
+                    <div className="p-3 bg-amber-50/60 border border-amber-100 rounded-2xl text-center">
                       <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider block">Lates</span>
-                      <strong className="text-amber-700 text-base font-black mt-1.5 block">{reportStats.lates}</strong>
+                      <strong className="text-amber-700 text-base font-black mt-1 block">{reportStats.lates}</strong>
                     </div>
-                    <div className="p-3 bg-cyan-50/50 border border-cyan-100 rounded-2xl text-center">
+                    <div className="p-3 bg-cyan-50/60 border border-cyan-100 rounded-2xl text-center">
                       <span className="text-[9px] font-black text-cyan-600 uppercase tracking-wider block">Half Days</span>
-                      <strong className="text-cyan-700 text-base font-black mt-1.5 block">{reportStats.halfDays}</strong>
+                      <strong className="text-cyan-700 text-base font-black mt-1 block">{reportStats.halfDays}</strong>
                     </div>
-                    <div className="p-3 bg-rose-50/40 border border-rose-100/60 rounded-2xl text-center">
-                      <span className="text-[9px] font-black text-brand-red uppercase tracking-wider block">Absents</span>
-                      <strong className="text-brand-red text-base font-black mt-1.5 block">{reportStats.absents}</strong>
+                    <div className="p-3 bg-teal-50/60 border border-teal-100 rounded-2xl text-center">
+                      <span className="text-[9px] font-black text-teal-600 uppercase tracking-wider block">Paid Leaves</span>
+                      <strong className="text-teal-700 text-base font-black mt-1 block">{reportStats.paidLeaves}</strong>
                     </div>
-                    <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-2xl text-center">
-                      <span className="text-[9px] font-black text-blue-600 uppercase tracking-wider block">Leaves</span>
-                      <strong className="text-blue-700 text-base font-black mt-1.5 block">{reportStats.leaves}</strong>
+                    <div className="p-3 bg-orange-50/60 border border-orange-100 rounded-2xl text-center">
+                      <span className="text-[9px] font-black text-orange-600 uppercase tracking-wider block">Unpaid (LOP)</span>
+                      <strong className="text-orange-700 text-base font-black mt-1 block">{reportStats.unpaidLeaves}</strong>
                     </div>
-                    <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-2xl text-center">
+                    <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl text-center">
                       <span className="text-[9px] font-black text-indigo-650 uppercase tracking-wider block">Holidays</span>
-                      <strong className="text-indigo-700 text-base font-black mt-1.5 block">{reportStats.holidays}</strong>
+                      <strong className="text-indigo-700 text-base font-black mt-1 block">{reportStats.holidays}</strong>
                     </div>
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl text-center col-span-2 sm:col-span-1">
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center">
                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Weekends</span>
-                      <strong className="text-slate-655 text-base font-black mt-1.5 block">{reportStats.weekends}</strong>
+                      <strong className="text-slate-655 text-base font-black mt-1 block">{reportStats.weekends}</strong>
+                    </div>
+                    <div className="p-3 bg-rose-50/50 border border-rose-100/80 rounded-2xl text-center">
+                      <span className="text-[9px] font-black text-brand-red uppercase tracking-wider block">Absents</span>
+                      <strong className="text-brand-red text-base font-black mt-1 block">{reportStats.absents}</strong>
                     </div>
                   </div>
 
@@ -1690,7 +1795,11 @@ export default function Attendance() {
                                   : day.status === 'Late'
                                   ? 'bg-amber-50 text-amber-600 border border-amber-100'
                                   : day.status === 'Half Day'
-                                  ? 'bg-cyan-50 text-cyan-600 border border-cyan-100'
+                                  ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                                  : day.status === 'Paid Leave'
+                                  ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                  : day.status === 'Unpaid Leave'
+                                  ? 'bg-orange-50 text-orange-700 border border-orange-200'
                                   : day.status === 'Holiday'
                                   ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
                                   : day.status === 'Leave'
@@ -1699,7 +1808,7 @@ export default function Attendance() {
                                   ? 'bg-slate-100 text-slate-500 border border-slate-200'
                                   : 'bg-rose-50 text-brand-red border border-rose-100'
                               }`}>
-                                {day.status}
+                                {day.status === 'Paid Leave' ? 'Paid Leave' : day.status === 'Unpaid Leave' ? 'Unpaid (LOP)' : day.status}
                               </span>
                             </td>
                             <td className="p-4 font-mono text-slate-700 font-bold">{day.checkIn}</td>
@@ -2014,6 +2123,157 @@ export default function Attendance() {
                 Close
               </button>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* SHIFT & OFFICE TIMINGS CONFIGURATION MODAL */}
+      {showTimingModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-[#EBEAE6] bg-[#FAF9F6]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-50 text-brand-red flex items-center justify-center border border-red-100">
+                  <Clock size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">
+                    Shift & Attendance Rules
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-semibold">
+                    Configure office timings, half-day duration limit & paid leave quota
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowTimingModal(false)}
+                className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-2 rounded-full transition-colors cursor-pointer bg-transparent border-0 flex items-center justify-center outline-none"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveAttendanceSettings} className="p-6 space-y-4 overflow-y-auto">
+              {timingError && (
+                <div className="bg-rose-50 border border-rose-100 text-brand-red text-xs font-bold p-3 rounded-xl flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{timingError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Office Start Time */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Office Start Time (24h)
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={timingFormData.officeStartTime || '10:00'}
+                    onChange={(e) => setTimingFormData({ ...timingFormData, officeStartTime: e.target.value })}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  />
+                  <span className="text-[9px] text-slate-400 font-semibold block">Official shift commencement</span>
+                </div>
+
+                {/* Office End Time */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Office End Time (24h)
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={timingFormData.officeEndTime || '18:00'}
+                    onChange={(e) => setTimingFormData({ ...timingFormData, officeEndTime: e.target.value })}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  />
+                  <span className="text-[9px] text-slate-400 font-semibold block">Official shift punch-out</span>
+                </div>
+
+                {/* Late Check-in Threshold */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Late Grace Time (24h)
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={timingFormData.lateThresholdTime || '10:15'}
+                    onChange={(e) => setTimingFormData({ ...timingFormData, lateThresholdTime: e.target.value })}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  />
+                  <span className="text-[9px] text-slate-400 font-semibold block">Check-ins after this time mark Late</span>
+                </div>
+
+                {/* Half-Day Threshold (Hours) */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Half-Day Hours Limit
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="1"
+                    max="12"
+                    required
+                    value={timingFormData.halfDayThresholdHours ?? 4.0}
+                    onChange={(e) => setTimingFormData({ ...timingFormData, halfDayThresholdHours: Number(e.target.value) })}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  />
+                  <span className="text-[9px] text-slate-400 font-semibold block">Working &lt; this marks Half-Day (e.g. 4 hrs)</span>
+                </div>
+
+                {/* Monthly Paid Leaves Quota */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Monthly Paid Leaves Quota (per employee)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="31"
+                    required
+                    value={timingFormData.monthlyPaidLeavesQuota ?? 2}
+                    onChange={(e) => setTimingFormData({ ...timingFormData, monthlyPaidLeavesQuota: Number(e.target.value) })}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  />
+                  <span className="text-[9px] text-slate-400 font-semibold block">
+                    Leaves approved up to this count in a calendar month are Paid (No salary deduction). Extra leaves become Unpaid / Loss of Pay.
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-3 border-t border-[#EBEAE6]">
+                <button
+                  type="button"
+                  onClick={() => setShowTimingModal(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border-0"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={timingLoading}
+                  className="flex-1 py-2.5 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer border-0 shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {timingLoading ? (
+                    <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      <span>Save Shift Settings</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
 
           </div>
         </div>

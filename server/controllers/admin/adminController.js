@@ -276,8 +276,24 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 
-    const report = [];
-    const daysInMonth = endDate.getDate();
+    const Settings = require('../../models/Settings');
+    const settings = await Settings.findOne();
+    const attendanceSettings = settings?.attendance || {
+      officeStartTime: '10:00',
+      officeEndTime: '18:00',
+      lateThresholdTime: '10:15',
+      halfDayThresholdHours: 4.0,
+      monthlyPaidLeavesQuota: 2
+    };
+
+    let presentCount = 0;
+    let halfDayCount = 0;
+    let lateCount = 0;
+    let paidLeaveCount = 0;
+    let unpaidLeaveCount = 0;
+    let holidayCount = 0;
+    let absentCount = 0;
+    let weekendCount = 0;
 
     for (let day = 1; day <= daysInMonth; day++) {
       const currentDate = new Date(yr, mn - 1, day);
@@ -308,12 +324,22 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
         }
       }
 
+      if (status === 'Present') presentCount++;
+      else if (status === 'Half Day') halfDayCount++;
+      else if (status === 'Late') lateCount++;
+      else if (status === 'Paid Leave' || status === 'Leave') paidLeaveCount++;
+      else if (status === 'Unpaid Leave') unpaidLeaveCount++;
+      else if (status === 'Holiday') holidayCount++;
+      else if (status === 'Absent') absentCount++;
+      else if (status === 'Weekend') weekendCount++;
+
       report.push({
         date: currentDate.toISOString(),
         dayOfWeek: currentDate.toLocaleDateString('en-US', { weekday: 'long' }),
         status: status,
         checkIn: record ? record.checkIn || '-' : '-',
         checkOut: record ? record.checkOut || '-' : '-',
+        workingHours: record ? (record.workingHours || 0) : 0,
         remarks: record ? record.remarks || '-' : '-'
       });
     }
@@ -321,12 +347,26 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       employee: {
+        id: employee._id,
         name: employee.name,
         lastName: employee.lastName,
         department: employee.department || 'Unassigned',
         designation: employee.designation || 'Staff',
         profilePicture: employee.profilePicture,
         dateOfJoining: employee.dateOfJoining || employee.createdAt
+      },
+      summaryStats: {
+        totalDays: daysInMonth,
+        presentDays: presentCount,
+        halfDays: halfDayCount,
+        lateDays: lateCount,
+        paidLeavesCount: paidLeaveCount,
+        unpaidLeavesCount: unpaidLeaveCount,
+        holidaysCount: holidayCount,
+        absentDays: absentCount,
+        weekendDays: weekendCount,
+        monthlyPaidLeavesQuota: attendanceSettings.monthlyPaidLeavesQuota || 2,
+        halfDayThresholdHours: attendanceSettings.halfDayThresholdHours || 4.0
       },
       report
     });
@@ -540,6 +580,78 @@ exports.deleteHoliday = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: 'Holiday successfully canceled and attendance logs reverted.'
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get attendance & shift settings
+// @route   GET /api/admin/attendance/settings
+// @access  Private (Admin only)
+exports.getAttendanceSettings = async (req, res, next) => {
+  try {
+    const Settings = require('../../models/Settings');
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create({});
+    }
+
+    const attendanceSettings = settings.attendance || {
+      officeStartTime: '10:00',
+      officeEndTime: '18:00',
+      lateThresholdTime: '10:15',
+      halfDayThresholdHours: 4.0,
+      fullDayThresholdHours: 8.0,
+      monthlyPaidLeavesQuota: 2
+    };
+
+    return res.status(200).json({
+      success: true,
+      settings: attendanceSettings
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Update attendance & shift settings
+// @route   PUT /api/admin/attendance/settings
+// @access  Private (Admin only)
+exports.updateAttendanceSettings = async (req, res, next) => {
+  try {
+    const {
+      officeStartTime,
+      officeEndTime,
+      lateThresholdTime,
+      halfDayThresholdHours,
+      fullDayThresholdHours,
+      monthlyPaidLeavesQuota
+    } = req.body;
+
+    const Settings = require('../../models/Settings');
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create({});
+    }
+
+    if (!settings.attendance) {
+      settings.attendance = {};
+    }
+
+    if (officeStartTime !== undefined) settings.attendance.officeStartTime = officeStartTime;
+    if (officeEndTime !== undefined) settings.attendance.officeEndTime = officeEndTime;
+    if (lateThresholdTime !== undefined) settings.attendance.lateThresholdTime = lateThresholdTime;
+    if (halfDayThresholdHours !== undefined) settings.attendance.halfDayThresholdHours = Number(halfDayThresholdHours);
+    if (fullDayThresholdHours !== undefined) settings.attendance.fullDayThresholdHours = Number(fullDayThresholdHours);
+    if (monthlyPaidLeavesQuota !== undefined) settings.attendance.monthlyPaidLeavesQuota = Number(monthlyPaidLeavesQuota);
+
+    await settings.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Attendance and shift timings updated successfully.',
+      settings: settings.attendance
     });
   } catch (err) {
     next(err);

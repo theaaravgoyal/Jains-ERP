@@ -46,8 +46,8 @@ export const adminAttendanceApi = {
     return data;
   },
 
-  updateLeaveStatus: async (id, status) => {
-    const { data } = await axiosInstance.put(`/admin/leaves/${id}/status`, { status });
+  updateLeaveStatus: async (id, status, remarks = '') => {
+    const { data } = await axiosInstance.put(`/admin/leaves/${id}/status`, { status, remarks });
     return data;
   },
 
@@ -70,6 +70,16 @@ export const adminAttendanceApi = {
     const { data } = await axiosInstance.get('/admin/attendance/report', {
       params: { employeeId, year, month }
     });
+    return data;
+  },
+
+  getAttendanceSettings: async () => {
+    const { data } = await axiosInstance.get('/admin/attendance/settings');
+    return data;
+  },
+
+  updateAttendanceSettings: async (settingsData) => {
+    const { data } = await axiosInstance.put('/admin/attendance/settings', settingsData);
     return data;
   },
 

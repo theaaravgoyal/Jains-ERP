@@ -46,6 +46,14 @@ const SettingsSchema = new mongoose.Schema(
       dateFormat: { type: String, default: 'DD/MM/YYYY' },
       timeFormat: { type: String, default: '12h' },
       defaultLanguage: { type: String, default: 'English' }
+    },
+    attendance: {
+      officeStartTime: { type: String, default: '10:00' },
+      officeEndTime: { type: String, default: '18:00' },
+      lateThresholdTime: { type: String, default: '10:15' },
+      halfDayThresholdHours: { type: Number, default: 4.0 },
+      fullDayThresholdHours: { type: Number, default: 8.0 },
+      monthlyPaidLeavesQuota: { type: Number, default: 2 }
     }
   },
   { timestamps: true }

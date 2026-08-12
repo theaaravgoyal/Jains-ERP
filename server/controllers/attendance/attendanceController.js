@@ -1,5 +1,6 @@
 const Employee = require('../../models/Employee');
 const Attendance = require('../../models/Attendance');
+const Settings = require('../../models/Settings');
 
 const getIstTodayBoundaries = (dateInput = new Date()) => {
   const d = new Date(dateInput);
@@ -30,10 +31,20 @@ exports.getTodayAttendance = async (req, res, next) => {
       .sort({ date: -1 })
       .limit(120);
 
+    const settings = await Settings.findOne();
+    const attendanceSettings = settings?.attendance || {
+      officeStartTime: '10:00',
+      officeEndTime: '18:00',
+      lateThresholdTime: '10:15',
+      halfDayThresholdHours: 4.0,
+      monthlyPaidLeavesQuota: 2
+    };
+
     return res.status(200).json({
       success: true,
       todayRecord: attendance,
-      history
+      history,
+      settings: attendanceSettings
     });
   } catch (err) {
     next(err);
@@ -66,11 +77,13 @@ exports.checkInEmployee = async (req, res, next) => {
     const minutes = istTime.getUTCMinutes();
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-    // Late threshold: after 10:00 AM IST
-    let status = 'Present';
-    if (hours > 10 || (hours === 10 && minutes > 0)) {
-      status = 'Late';
-    }
+    // Get dynamic late threshold from Settings
+    const settings = await Settings.findOne();
+    const lateThresholdStr = settings?.attendance?.lateThresholdTime || '10:15';
+    const [threshH, threshM] = lateThresholdStr.split(':').map(Number);
+    const isLate = (hours * 60 + minutes) > (threshH * 60 + (threshM || 0));
+
+    const status = isLate ? 'Late' : 'Present';
 
     const attendance = await Attendance.create({
       employee: req.employee._id,
@@ -82,7 +95,7 @@ exports.checkInEmployee = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      message: status === 'Late' ? 'Checked in late successfully.' : 'Checked in successfully.',
+      message: status === 'Late' ? `Checked in late (${timeStr}).` : `Checked in successfully (${timeStr}).`,
       record: attendance
     });
   } catch (err) {
@@ -121,17 +134,28 @@ exports.checkOutEmployee = async (req, res, next) => {
 
     // Calculate total hours since check-in
     const checkInTime = new Date(attendance.date);
-    const durationHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+    const durationHours = Math.max(0, (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60));
+    const roundedHours = Math.round(durationHours * 10) / 10;
+    attendance.workingHours = roundedHours;
 
-    if (durationHours >= 3.0 && durationHours <= 5.0) {
+    // Fetch dynamic half-day threshold from Settings (Default 4.0 hours)
+    const settings = await Settings.findOne();
+    const halfDayThreshold = settings?.attendance?.halfDayThresholdHours || 4.0;
+
+    // If employee worked less than 4 hours, mark as Half Day
+    if (durationHours < halfDayThreshold) {
       attendance.status = 'Half Day';
     }
 
     await attendance.save();
 
+    const message = attendance.status === 'Half Day'
+      ? `Checked out successfully (${timeStr}). Working duration is ${roundedHours} hrs (< ${halfDayThreshold} hrs threshold), marked as Half Day.`
+      : `Checked out successfully (${timeStr}). Total working duration: ${roundedHours} hrs.`;
+
     return res.status(200).json({
       success: true,
-      message: 'Checked out successfully.',
+      message,
       record: attendance
     });
   } catch (err) {

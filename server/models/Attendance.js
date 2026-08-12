@@ -13,7 +13,7 @@ const AttendanceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Present', 'Absent', 'Leave', 'Late', 'Holiday', 'Half Day'],
+      enum: ['Present', 'Absent', 'Leave', 'Paid Leave', 'Unpaid Leave', 'Late', 'Holiday', 'Half Day', 'Weekend'],
       default: 'Present'
     },
     checkIn: {
@@ -23,6 +23,10 @@ const AttendanceSchema = new mongoose.Schema(
     checkOut: {
       type: String,
       default: ''
+    },
+    workingHours: {
+      type: Number,
+      default: 0
     },
     remarks: {
       type: String,

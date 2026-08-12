@@ -309,7 +309,7 @@ export default function EmployeeDashboard() {
         setLeaveFormSuccess('Leave application cancelled successfully.');
         await Promise.all([
           fetchLeaves(true),
-          fetchDashboardData(true)
+          fetchStatus(true)
         ]);
       }
     } catch (err) {

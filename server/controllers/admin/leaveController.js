@@ -241,19 +241,16 @@ exports.updateLeaveDetails = async (req, res, next) => {
     const empId = leave.employee?._id || leave.employee;
     const oldStart = new Date(leave.startDate);
     const oldEnd = new Date(leave.endDate);
-    oldStart.setHours(0, 0, 0, 0);
-    oldEnd.setHours(0, 0, 0, 0);
 
-    // 1. Clean up old attendance records associated with the previous date range
-    const oldCur = new Date(oldStart);
-    while (oldCur <= oldEnd) {
-      const { start: dayStart, end: dayEnd } = getIstTodayBoundaries(oldCur);
+    // 1. Clean up old attendance records associated with the previous date range in a single query
+    if (!isNaN(oldStart.getTime()) && !isNaN(oldEnd.getTime())) {
+      const { start: fullOldStart } = getIstTodayBoundaries(oldStart);
+      const { end: fullOldEnd } = getIstTodayBoundaries(oldEnd);
       await Attendance.deleteMany({
         employee: empId,
         status: { $in: ['Paid Leave', 'Unpaid Leave', 'Leave'] },
-        date: { $gte: dayStart, $lte: dayEnd }
+        date: { $gte: fullOldStart, $lte: fullOldEnd }
       });
-      oldCur.setDate(oldCur.getDate() + 1);
     }
 
     // 2. Update Leave Fields
@@ -265,6 +262,11 @@ exports.updateLeaveDetails = async (req, res, next) => {
 
     const newStart = new Date(leave.startDate);
     const newEnd = new Date(leave.endDate);
+
+    if (isNaN(newStart.getTime()) || isNaN(newEnd.getTime())) {
+      return res.status(400).json({ success: false, message: 'Please provide valid start and end dates.' });
+    }
+
     newStart.setHours(0, 0, 0, 0);
     newEnd.setHours(0, 0, 0, 0);
 
@@ -314,36 +316,31 @@ exports.updateLeaveDetails = async (req, res, next) => {
       leave.approvedBy = req.user ? req.user._id : leave.approvedBy;
       await leave.save();
 
-      // Create / update attendance records for new date range
-      for (let i = 0; i < newDaysList.length; i++) {
-        const leaveDate = newDaysList[i];
+      // Parallel upsert Attendance records for new date range
+      const upsertPromises = newDaysList.map(async (leaveDate, i) => {
         const isPaid = i < finalPaidDays;
         const statusToMark = isPaid ? 'Paid Leave' : 'Unpaid Leave';
-
         const { start: dayStart, end: dayEnd } = getIstTodayBoundaries(leaveDate);
 
-        let attRecord = await Attendance.findOne({
-          employee: empId,
-          date: { $gte: dayStart, $lte: dayEnd }
-        });
-
-        if (attRecord) {
-          attRecord.status = statusToMark;
-          attRecord.remarks = `${leave.leaveType} Leave (${isPaid ? 'Paid' : 'Unpaid'}): ${leave.reason || ''}`;
-          attRecord.checkIn = '';
-          attRecord.checkOut = '';
-          await attRecord.save();
-        } else {
-          await Attendance.create({
+        return Attendance.findOneAndUpdate(
+          {
+            employee: empId,
+            date: { $gte: dayStart, $lte: dayEnd }
+          },
+          {
             employee: empId,
             date: dayStart,
             status: statusToMark,
             checkIn: '',
             checkOut: '',
+            workingHours: 0,
             remarks: `${leave.leaveType} Leave (${isPaid ? 'Paid' : 'Unpaid'}): ${leave.reason || ''}`
-          });
-        }
-      }
+          },
+          { returnDocument: 'after', upsert: true }
+        );
+      });
+
+      await Promise.all(upsertPromises);
     } else {
       if (leave.status !== 'Approved') {
         leave.paidDaysCount = 0;

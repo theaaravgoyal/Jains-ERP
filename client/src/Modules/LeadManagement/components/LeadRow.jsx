@@ -96,7 +96,28 @@ export default function LeadRow({
   onOpenWhatsApp,
   onOpenCallLog
 }) {
-  const [status, setStatus] = useState(lead.status || 'New');
+  // Derive effective status based on lead status & latest activities
+  const effectiveStatus = React.useMemo(() => {
+    const raw = lead.status;
+    const norm = (raw || 'new').toLowerCase();
+    if (norm === 'converted') return 'Converted';
+    if (norm === 'not interested' || norm === 'rejected') return 'Not Interested';
+    if (norm === 'follow-up' || norm === 'followup') return 'Follow-up';
+    if (norm === 'connected' || norm === 'contacted') return 'Connected';
+
+    // If status is 'New' or 'pending', check if staff activity / assignment exists
+    if (latestActivity) {
+      if (latestActivity.followUpDate) return 'Follow-up';
+      return 'Connected';
+    }
+    return 'New';
+  }, [lead.status, latestActivity]);
+
+  const [status, setStatus] = useState(effectiveStatus);
+
+  React.useEffect(() => {
+    setStatus(effectiveStatus);
+  }, [effectiveStatus]);
 
   const handleStatusChange = (e) => {
     const nextStatus = e.target.value;
@@ -105,7 +126,7 @@ export default function LeadRow({
   };
 
   const initials = getInitials(lead.name);
-  const avatarBg = getAvatarBgClass(lead.status);
+  const avatarBg = getAvatarBgClass(status);
   const hasStaff = latestActivity && latestActivity.staffName;
   const staffInitials = hasStaff ? getInitials(latestActivity.staffName) : '';
   const followUp = getFollowUpStatus(latestActivity?.followUpDate);

@@ -57,6 +57,18 @@ export default function Attendance() {
   const [editFormProfilePicture, setEditFormProfilePicture] = useState('');
   const [editFormError, setEditFormError] = useState('');
 
+  // Admin Edit Leave Modal States
+  const [showEditLeaveModal, setShowEditLeaveModal] = useState(false);
+  const [editingLeaveId, setEditingLeaveId] = useState(null);
+  const [editLeaveEmployeeName, setEditLeaveEmployeeName] = useState('');
+  const [editLeaveStartDate, setEditLeaveStartDate] = useState('');
+  const [editLeaveEndDate, setEditLeaveEndDate] = useState('');
+  const [editLeaveType, setEditLeaveType] = useState('Casual');
+  const [editLeaveStatus, setEditLeaveStatus] = useState('Approved');
+  const [editLeaveRemarks, setEditLeaveRemarks] = useState('');
+  const [editLeaveLoading, setEditLeaveLoading] = useState(false);
+  const [editLeaveError, setEditLeaveError] = useState('');
+
   // Shift & Office Timings State
   const [attendanceSettings, setAttendanceSettings] = useState({
     officeStartTime: '10:00',
@@ -253,6 +265,46 @@ export default function Attendance() {
       setError(err.response?.data?.message || 'Failed to reject leave request.');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleOpenEditLeaveModal = (leave) => {
+    setEditingLeaveId(leave._id);
+    setEditLeaveEmployeeName(leave.employee ? `${leave.employee.name} ${leave.employee.lastName || ''}` : 'Employee');
+    setEditLeaveStartDate(leave.startDate ? new Date(leave.startDate).toISOString().split('T')[0] : '');
+    setEditLeaveEndDate(leave.endDate ? new Date(leave.endDate).toISOString().split('T')[0] : '');
+    setEditLeaveType(leave.leaveType || 'Casual');
+    setEditLeaveStatus(leave.status || 'Approved');
+    setEditLeaveRemarks(leave.adminRemarks || '');
+    setEditLeaveError('');
+    setShowEditLeaveModal(true);
+  };
+
+  const handleSaveLeaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingLeaveId) return;
+    setEditLeaveLoading(true);
+    setEditLeaveError('');
+    try {
+      const res = await adminAttendanceApi.updateLeaveDetails(editingLeaveId, {
+        startDate: editLeaveStartDate,
+        endDate: editLeaveEndDate,
+        leaveType: editLeaveType,
+        status: editLeaveStatus,
+        adminRemarks: editLeaveRemarks
+      });
+      if (res.success) {
+        setSuccess(res.message || 'Leave details and attendance schedule updated successfully.');
+        setShowEditLeaveModal(false);
+        if (selectedLeave && selectedLeave._id === editingLeaveId) {
+          setSelectedLeave(null);
+        }
+        await fetchData();
+      }
+    } catch (err) {
+      setEditLeaveError(err.response?.data?.message || 'Failed to update leave details.');
+    } finally {
+      setEditLeaveLoading(false);
     }
   };
 
@@ -1143,36 +1195,48 @@ export default function Attendance() {
                                       ? 'bg-green-500'
                                       : item.status === 'Rejected'
                                       ? 'bg-red-500'
+                                      : item.status === 'Cancelled'
+                                      ? 'bg-slate-500'
                                       : 'bg-amber-400'
                                   }`}>
                                     {item.status}
                                   </span>
                                 </td>
                                 <td className="py-3 text-right">
-                                  {item.status === 'Pending' ? (
-                                    <div className="inline-flex gap-2">
-                                      <button
-                                        onClick={() => handleApproveLeave(item._id)}
-                                        disabled={actionLoading}
-                                        className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center gap-1 cursor-pointer border border-emerald-200 active:scale-95 transition-all outline-none"
-                                        title="Approve Leave (Auto-allocates up to 2 Paid Leaves, rest Unpaid)"
-                                      >
-                                        <Check size={13} />
-                                        <span>Approve</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handleRejectLeave(item._id)}
-                                        disabled={actionLoading}
-                                        className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-brand-red font-bold text-xs flex items-center gap-1 cursor-pointer border border-rose-200 active:scale-95 transition-all outline-none"
-                                        title="Reject Leave"
-                                      >
-                                        <X size={13} />
-                                        <span>Reject</span>
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Closed</span>
-                                  )}
+                                  <div className="inline-flex items-center gap-1.5 justify-end">
+                                    {item.status === 'Pending' && (
+                                      <>
+                                        <button
+                                          onClick={() => handleApproveLeave(item._id)}
+                                          disabled={actionLoading}
+                                          className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center gap-1 cursor-pointer border border-emerald-200 active:scale-95 transition-all outline-none"
+                                          title="Approve Leave (Auto-allocates up to 2 Paid Leaves, rest Unpaid)"
+                                        >
+                                          <Check size={12} />
+                                          <span>Approve</span>
+                                        </button>
+                                        <button
+                                          onClick={() => handleRejectLeave(item._id)}
+                                          disabled={actionLoading}
+                                          className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-brand-red font-bold text-xs flex items-center gap-1 cursor-pointer border border-rose-200 active:scale-95 transition-all outline-none"
+                                          title="Reject Leave"
+                                        >
+                                          <X size={12} />
+                                          <span>Reject</span>
+                                        </button>
+                                      </>
+                                    )}
+                                    {/* Edit Button for Admin on ALL leave records */}
+                                    <button
+                                      onClick={() => handleOpenEditLeaveModal(item)}
+                                      disabled={actionLoading}
+                                      className="px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 cursor-pointer border border-slate-200 active:scale-95 transition-all outline-none"
+                                      title="Edit Leave Dates, Type, Status or Remarks"
+                                    >
+                                      <Edit2 size={12} />
+                                      <span>Edit</span>
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))
@@ -2087,7 +2151,7 @@ export default function Attendance() {
 
             {/* Action buttons */}
             <div className="flex gap-2.5 pt-2 border-t border-slate-100">
-              {selectedLeave.status === 'Pending' && (
+              {selectedLeave.status === 'Pending' ? (
                 <>
                   <button
                     onClick={async () => {
@@ -2112,13 +2176,24 @@ export default function Attendance() {
                     <span>Reject</span>
                   </button>
                 </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const l = selectedLeave;
+                    setSelectedLeave(null);
+                    handleOpenEditLeaveModal(l);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition-all cursor-pointer shadow-sm border-0 flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <Edit2 size={14} />
+                  <span>Edit Dates / Status</span>
+                </button>
               )}
               <button
                 type="button"
                 onClick={() => setSelectedLeave(null)}
-                className={`py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold transition-all cursor-pointer ${
-                  selectedLeave.status === 'Pending' ? 'px-4' : 'w-full'
-                }`}
+                className="py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold transition-all cursor-pointer"
               >
                 Close
               </button>
@@ -2269,6 +2344,147 @@ export default function Attendance() {
                     <>
                       <Check size={14} />
                       <span>Save Shift Settings</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN EDIT LEAVE MODAL */}
+      {showEditLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-[#E8E6E1] space-y-5">
+            
+            <div className="flex items-center justify-between border-b border-[#EBEAE6] pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-brand-red/10 text-brand-red">
+                  <Edit2 size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-800 tracking-tight">Edit Leave Request</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Employee: <strong className="text-slate-750">{editLeaveEmployeeName}</strong></p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowEditLeaveModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors border-0"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {editLeaveError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2 font-medium">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{editLeaveError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveLeaveEdit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                
+                {/* Start Date */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Leave Start Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editLeaveStartDate}
+                    onChange={(e) => setEditLeaveStartDate(e.target.value)}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  />
+                </div>
+
+                {/* End Date */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Leave End Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editLeaveEndDate}
+                    onChange={(e) => setEditLeaveEndDate(e.target.value)}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  />
+                </div>
+
+                {/* Leave Type */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Leave Category / Type
+                  </label>
+                  <select
+                    value={editLeaveType}
+                    onChange={(e) => setEditLeaveType(e.target.value)}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  >
+                    <option value="Casual">Casual Leave</option>
+                    <option value="Sick">Sick Leave</option>
+                    <option value="Earned">Earned Leave</option>
+                    <option value="Maternity">Maternity Leave</option>
+                    <option value="Unpaid">Unpaid Leave (LOP)</option>
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Approval Status
+                  </label>
+                  <select
+                    value={editLeaveStatus}
+                    onChange={(e) => setEditLeaveStatus(e.target.value)}
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                  >
+                    <option value="Approved">Approved (Auto-reconciles Attendance)</option>
+                    <option value="Pending">Pending Review</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                {/* Admin Remarks */}
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                    Admin Note / Instructions (Visible to Employee)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editLeaveRemarks}
+                    onChange={(e) => setEditLeaveRemarks(e.target.value)}
+                    placeholder="e.g. Dates adjusted per discussion..."
+                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-[#EBEAE6]">
+                <button
+                  type="button"
+                  onClick={() => setShowEditLeaveModal(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border-0"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLeaveLoading}
+                  className="flex-1 py-2.5 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer border-0 shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {editLeaveLoading ? (
+                    <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      <span>Save & Sync Leave</span>
                     </>
                   )}
                 </button>

@@ -51,6 +51,11 @@ export const adminAttendanceApi = {
     return data;
   },
 
+  updateLeaveDetails: async (id, leaveData) => {
+    const { data } = await axiosInstance.put(`/admin/leaves/${id}`, leaveData);
+    return data;
+  },
+
   updateEmployee: async (id, employeeData) => {
     const { data } = await axiosInstance.put(`/admin/employees/${id}`, employeeData);
     return data;

@@ -78,3 +78,74 @@ exports.getMyLeaves = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Cancel employee's own leave request
+// @route   PUT /api/employee/leaves/:id/cancel
+// @access  Private (Employee)
+exports.cancelLeave = async (req, res, next) => {
+  try {
+    const leave = await Leave.findOne({
+      _id: req.params.id,
+      employee: req.employee._id
+    });
+
+    if (!leave) {
+      return res.status(404).json({ success: false, message: 'Leave request not found or not authorized.' });
+    }
+
+    if (leave.status === 'Cancelled') {
+      return res.status(400).json({ success: false, message: 'Leave request is already cancelled.' });
+    }
+
+    const Attendance = require('../../models/Attendance');
+    const start = new Date(leave.startDate);
+    const end = new Date(leave.endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    // If the leave was previously Approved, clean up the attendance records created for these dates
+    const cur = new Date(start);
+    while (cur <= end) {
+      const istTime = new Date(cur.getTime() + (5.5 * 60 * 60 * 1000));
+      const startOfDayIst = new Date(istTime);
+      startOfDayIst.setUTCHours(0, 0, 0, 0);
+      const dayStart = new Date(startOfDayIst.getTime() - (5.5 * 60 * 60 * 1000));
+      const dayEnd = new Date(dayStart.getTime() + (24 * 60 * 60 * 1000) - 1);
+
+      await Attendance.deleteMany({
+        employee: req.employee._id,
+        status: { $in: ['Paid Leave', 'Unpaid Leave', 'Leave'] },
+        date: { $gte: dayStart, $lte: dayEnd }
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    leave.status = 'Cancelled';
+    leave.paidDaysCount = 0;
+    leave.unpaidDaysCount = 0;
+    await leave.save();
+
+    // Create admin notification
+    try {
+      const emp = await Employee.findById(req.employee._id);
+      await Notification.create({
+        isAdmin: true,
+        senderName: `${emp.name} ${emp.lastName}`,
+        title: 'Leave Application Cancelled',
+        message: `${emp.name} ${emp.lastName} has cancelled their ${leave.leaveType} leave application (${new Date(leave.startDate).toLocaleDateString('en-IN')} - ${new Date(leave.endDate).toLocaleDateString('en-IN')}).`,
+        type: 'INFO',
+        module: 'Attendance'
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch leave cancel notification:', notifErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Leave application cancelled successfully.',
+      leave
+    });
+  } catch (err) {
+    next(err);
+  }
+};

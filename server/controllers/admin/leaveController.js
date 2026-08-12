@@ -225,3 +225,156 @@ exports.updateLeaveStatus = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Admin edit/modify an existing leave request (dates, type, status, remarks, paid/unpaid allocation)
+// @route   PUT /api/admin/leaves/:id
+// @access  Private (Admin only)
+exports.updateLeaveDetails = async (req, res, next) => {
+  try {
+    const { startDate, endDate, leaveType, status, adminRemarks, paidDaysCount, unpaidDaysCount } = req.body;
+
+    const leave = await Leave.findById(req.params.id).populate('employee');
+    if (!leave) {
+      return res.status(404).json({ success: false, message: 'Leave request not found.' });
+    }
+
+    const empId = leave.employee?._id || leave.employee;
+    const oldStart = new Date(leave.startDate);
+    const oldEnd = new Date(leave.endDate);
+    oldStart.setHours(0, 0, 0, 0);
+    oldEnd.setHours(0, 0, 0, 0);
+
+    // 1. Clean up old attendance records associated with the previous date range
+    const oldCur = new Date(oldStart);
+    while (oldCur <= oldEnd) {
+      const { start: dayStart, end: dayEnd } = getIstTodayBoundaries(oldCur);
+      await Attendance.deleteMany({
+        employee: empId,
+        status: { $in: ['Paid Leave', 'Unpaid Leave', 'Leave'] },
+        date: { $gte: dayStart, $lte: dayEnd }
+      });
+      oldCur.setDate(oldCur.getDate() + 1);
+    }
+
+    // 2. Update Leave Fields
+    if (startDate) leave.startDate = new Date(startDate);
+    if (endDate) leave.endDate = new Date(endDate);
+    if (leaveType) leave.leaveType = leaveType;
+    if (status) leave.status = status;
+    if (adminRemarks !== undefined) leave.adminRemarks = adminRemarks;
+
+    const newStart = new Date(leave.startDate);
+    const newEnd = new Date(leave.endDate);
+    newStart.setHours(0, 0, 0, 0);
+    newEnd.setHours(0, 0, 0, 0);
+
+    if (newStart > newEnd) {
+      return res.status(400).json({ success: false, message: 'Start date cannot be after end date.' });
+    }
+
+    const newDaysList = [];
+    const cur = new Date(newStart);
+    while (cur <= newEnd) {
+      newDaysList.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    const totalLeaveDays = newDaysList.length;
+
+    const settings = await Settings.findOne();
+    const monthlyQuota = settings?.attendance?.monthlyPaidLeavesQuota ?? 2;
+
+    if (leave.status === 'Approved') {
+      let finalPaidDays = 0;
+      let finalUnpaidDays = 0;
+
+      if (paidDaysCount !== undefined && unpaidDaysCount !== undefined) {
+        finalPaidDays = Number(paidDaysCount) || 0;
+        finalUnpaidDays = Number(unpaidDaysCount) || 0;
+      } else {
+        // Recalculate automatic quota
+        const leaveMonthStart = new Date(newStart.getFullYear(), newStart.getMonth(), 1);
+        const leaveMonthEnd = new Date(newStart.getFullYear(), newStart.getMonth() + 1, 0, 23, 59, 59, 999);
+
+        const otherApprovedLeaves = await Leave.find({
+          _id: { $ne: leave._id },
+          employee: empId,
+          status: 'Approved',
+          startDate: { $gte: leaveMonthStart, $lte: leaveMonthEnd }
+        });
+
+        const alreadyUsedPaid = otherApprovedLeaves.reduce((acc, l) => acc + (l.paidDaysCount || 0), 0);
+        const availableQuota = Math.max(0, monthlyQuota - alreadyUsedPaid);
+
+        finalPaidDays = Math.min(totalLeaveDays, availableQuota);
+        finalUnpaidDays = totalLeaveDays - finalPaidDays;
+      }
+
+      leave.paidDaysCount = finalPaidDays;
+      leave.unpaidDaysCount = finalUnpaidDays;
+      leave.approvedBy = req.user ? req.user._id : leave.approvedBy;
+      await leave.save();
+
+      // Create / update attendance records for new date range
+      for (let i = 0; i < newDaysList.length; i++) {
+        const leaveDate = newDaysList[i];
+        const isPaid = i < finalPaidDays;
+        const statusToMark = isPaid ? 'Paid Leave' : 'Unpaid Leave';
+
+        const { start: dayStart, end: dayEnd } = getIstTodayBoundaries(leaveDate);
+
+        let attRecord = await Attendance.findOne({
+          employee: empId,
+          date: { $gte: dayStart, $lte: dayEnd }
+        });
+
+        if (attRecord) {
+          attRecord.status = statusToMark;
+          attRecord.remarks = `${leave.leaveType} Leave (${isPaid ? 'Paid' : 'Unpaid'}): ${leave.reason || ''}`;
+          attRecord.checkIn = '';
+          attRecord.checkOut = '';
+          await attRecord.save();
+        } else {
+          await Attendance.create({
+            employee: empId,
+            date: dayStart,
+            status: statusToMark,
+            checkIn: '',
+            checkOut: '',
+            remarks: `${leave.leaveType} Leave (${isPaid ? 'Paid' : 'Unpaid'}): ${leave.reason || ''}`
+          });
+        }
+      }
+    } else {
+      if (leave.status !== 'Approved') {
+        leave.paidDaysCount = 0;
+        leave.unpaidDaysCount = 0;
+      }
+      await leave.save();
+    }
+
+    // Send notification to employee
+    try {
+      await Notification.create({
+        recipient: empId,
+        targetUser: empId,
+        senderName: 'Admin',
+        title: `Leave Details Updated`,
+        message: `Admin updated your ${leave.leaveType} leave request (${new Date(leave.startDate).toLocaleDateString('en-IN')} - ${new Date(leave.endDate).toLocaleDateString('en-IN')}) status to ${leave.status}.${leave.adminRemarks ? ` Note: ${leave.adminRemarks}` : ''}`,
+        type: leave.status === 'Approved' ? 'SUCCESS' : 'INFO',
+        module: 'Attendance',
+        priority: 'HIGH',
+        actionUrl: '/employee'
+      });
+    } catch (notifErr) {
+      console.warn('Failed to send leave edit notification:', notifErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Leave details and attendance schedule updated successfully.',
+      leave
+    });
+  } catch (err) {
+    next(err);
+  }
+};

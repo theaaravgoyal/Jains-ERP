@@ -300,6 +300,25 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const handleCancelLeave = async (leaveId) => {
+    if (!window.confirm('Are you sure you want to cancel this leave application?')) return;
+    setLeaveLoading(true);
+    try {
+      const res = await employeeApi.cancelLeave(leaveId);
+      if (res.success) {
+        setLeaveFormSuccess('Leave application cancelled successfully.');
+        await Promise.all([
+          fetchLeaves(true),
+          fetchDashboardData(true)
+        ]);
+      }
+    } catch (err) {
+      setLeaveFormError(err.response?.data?.message || 'Failed to cancel leave application.');
+    } finally {
+      setLeaveLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     employeeLogout();
     navigate(ROUTES.EMPLOYEE_LOGIN);
@@ -1120,6 +1139,8 @@ export default function EmployeeDashboard() {
                                 ? 'bg-green-500'
                                 : item.status === 'Rejected'
                                 ? 'bg-red-500'
+                                : item.status === 'Cancelled'
+                                ? 'bg-slate-400'
                                 : 'bg-amber-400'
                             }`}>
                               {item.status}
@@ -1158,6 +1179,22 @@ export default function EmployeeDashboard() {
                               </div>
                             )}
                           </div>
+
+                          {/* Cancel Leave Button for Employee */}
+                          {(item.status === 'Pending' || item.status === 'Approved') && (
+                            <div className="pt-2 border-t border-slate-100 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleCancelLeave(item._id)}
+                                disabled={leaveLoading}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                                title="Cancel this leave application"
+                              >
+                                <X size={11} />
+                                <span>Cancel Leave</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

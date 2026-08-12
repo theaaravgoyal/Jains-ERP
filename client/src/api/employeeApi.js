@@ -46,6 +46,11 @@ export const employeeApi = {
     return data;
   },
 
+  cancelLeave: async (id) => {
+    const { data } = await employeeAxios.put(`/employee/leaves/${id}/cancel`);
+    return data;
+  },
+
   updateProfile: async (profileData) => {
     const { data } = await employeeAxios.put('/employee/me', profileData);
     return data;

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../../components/Card';
 import { useLeads } from '../hooks/useLeads';
@@ -14,7 +14,7 @@ import MessageModal from '../components/MessageModal';
 import LeadConnectionSummary from '../components/LeadConnectionSummary';
 import AdmissionTab from '../components/AdmissionTab';
 import OfflineLeadsTab from '../components/OfflineLeadsTab';
-import { RefreshCw, PlusCircle, Bell, MoreVertical, ArrowLeft } from 'lucide-react';
+import { RefreshCw, PlusCircle, Bell, MoreVertical, ArrowLeft, Check, CheckCheck } from 'lucide-react';
 
 export default function LeadDashboard() {
   const navigate = useNavigate();
@@ -39,6 +39,58 @@ export default function LeadDashboard() {
   // Selected lead for full details view
   const [selectedLead, setSelectedLead] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notifDropdownRef = useRef(null);
+
+  // Acknowledged / Read follow-up notifications state
+  const [readFollowUpKeys, setReadFollowUpKeys] = useState(() => {
+    try {
+      const saved = localStorage.getItem('erp_read_followup_keys');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const getFollowUpKey = (item) => {
+    const leadId = item.lead?._id || item.lead?.id;
+    return `${leadId}_${item.followUpDate || ''}`;
+  };
+
+  const markFollowUpAsRead = (item) => {
+    const key = getFollowUpKey(item);
+    setReadFollowUpKeys((prev) => {
+      if (prev.includes(key)) return prev;
+      const next = [...prev, key];
+      try {
+        localStorage.setItem('erp_read_followup_keys', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  const markAllFollowUpsAsRead = () => {
+    const allKeys = todayFollowUps.map(item => getFollowUpKey(item));
+    setReadFollowUpKeys((prev) => {
+      const next = Array.from(new Set([...prev, ...allKeys]));
+      try {
+        localStorage.setItem('erp_read_followup_keys', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  // Click outside to close notification popover
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotifications]);
 
   // Active tab state
   const [activeTab, setActiveTab] = useState('online');
@@ -108,7 +160,12 @@ export default function LeadDashboard() {
       }
     });
     return list;
-  }, [leads, latestActivitiesMap]);
+  }, [onlineLeads, latestActivitiesMap]);
+
+  // Compute unread follow-up items
+  const unreadFollowUps = useMemo(() => {
+    return todayFollowUps.filter(item => !readFollowUpKeys.includes(getFollowUpKey(item)));
+  }, [todayFollowUps, readFollowUpKeys]);
 
   // States for row action overlays
   const [rowActionLead, setRowActionLead] = useState(null);
@@ -225,31 +282,51 @@ export default function LeadDashboard() {
           <div className="flex items-center gap-3 self-start md:self-center">
             
             {/* Bell notification button */}
-            <div className="relative">
+            <div className="relative" ref={notifDropdownRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
                 className={`bg-white border border-[#DEDCD8] hover:bg-[#F0EEEA] text-slate-650 hover:text-slate-850 p-2 rounded-full transition-colors relative cursor-pointer shadow-sm w-9 h-9 flex items-center justify-center ${
-                  todayFollowUps.some(item => item.isOverdue) 
+                  unreadFollowUps.some(item => item.isOverdue) 
                     ? 'animate-bell-pulse-red' 
-                    : todayFollowUps.length > 0 
+                    : unreadFollowUps.length > 0 
                     ? 'animate-bell-ring' 
                     : ''
                 }`}
-                title="Notifications"
+                title="Follow-up Notifications"
               >
                 <Bell size={15} />
-                {todayFollowUps.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#E31C1C] text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md">
-                    {todayFollowUps.length}
+                {unreadFollowUps.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#E31C1C] text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-scale-in">
+                    {unreadFollowUps.length}
                   </span>
                 )}
               </button>
               
               {showNotifications && (
-                <div className="absolute right-0 mt-2.5 w-80 bg-white border border-[#E8E6E1] rounded-2xl shadow-xl z-50 p-4 space-y-3 animate-fade-in">
+                <div className="absolute right-0 mt-2.5 w-84 bg-white border border-[#E8E6E1] rounded-2xl shadow-xl z-50 p-4 space-y-3 animate-fade-in">
                   <div className="flex items-center justify-between border-b border-[#EBEAE6] pb-2">
-                    <span className="text-xs font-black text-slate-800 tracking-tight">Today's Follow-up Tasks</span>
-                    <span className="text-[9px] bg-rose-50 text-[#E31C1C] px-2 py-0.5 rounded-full font-black border border-rose-100 uppercase tracking-wider">{todayFollowUps.length} Pending</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-800 tracking-tight">Today's Follow-up Tasks</span>
+                      {unreadFollowUps.length > 0 ? (
+                        <span className="text-[9px] bg-rose-50 text-[#E31C1C] px-2 py-0.5 rounded-full font-black border border-rose-100 uppercase tracking-wider">
+                          {unreadFollowUps.length} Pending
+                        </span>
+                      ) : (
+                        <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-black border border-emerald-200 uppercase tracking-wider">
+                          All Checked
+                        </span>
+                      )}
+                    </div>
+                    {unreadFollowUps.length > 0 && (
+                      <button
+                        onClick={markAllFollowUpsAsRead}
+                        className="text-[9px] font-bold text-emerald-600 hover:text-emerald-700 border-0 bg-transparent cursor-pointer flex items-center gap-0.5 hover:underline"
+                        title="Mark all as read"
+                      >
+                        <CheckCheck size={11} />
+                        <span>Mark all read</span>
+                      </button>
+                    )}
                   </div>
                   
                   <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
@@ -257,37 +334,67 @@ export default function LeadDashboard() {
                       <div className="py-6 text-center text-slate-450 text-xs font-semibold leading-relaxed">
                         🎉 No follow-up reminders scheduled for today!
                       </div>
+                    ) : unreadFollowUps.length === 0 ? (
+                      <div className="py-6 text-center text-emerald-600 text-xs font-semibold leading-relaxed space-y-1">
+                        <p className="font-bold">✨ All follow-up tasks acknowledged!</p>
+                        <p className="text-[10px] text-slate-400">No active alerts remaining on your bell.</p>
+                      </div>
                     ) : (
-                      todayFollowUps.map(({ lead, time, isOverdue }) => (
-                        <div 
-                          key={lead._id || lead.id}
-                          onClick={() => {
-                            setSelectedLead(lead);
-                            setShowNotifications(false);
-                          }}
-                          className="p-3 bg-[#FAF9F6] hover:bg-[#FFF5F5] border border-[#E8E6E1] hover:border-[#FCD4D4] rounded-xl cursor-pointer transition-all space-y-1 group"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800 group-hover:text-[#E31C1C] transition-colors">{lead.name}</span>
-                            {isOverdue ? (
-                              <span className="text-[9px] text-white font-black uppercase tracking-wider bg-[#E31C1C] px-2 py-0.5 rounded-md animate-pulse">
-                                Overdue • {time}
+                      todayFollowUps.map((item) => {
+                        const { lead, time, isOverdue } = item;
+                        const isRead = readFollowUpKeys.includes(getFollowUpKey(item));
+                        return (
+                          <div 
+                            key={lead._id || lead.id}
+                            onClick={() => {
+                              markFollowUpAsRead(item);
+                              setSelectedLead(lead);
+                              setShowNotifications(false);
+                            }}
+                            className={`p-3 rounded-xl cursor-pointer transition-all space-y-1 group relative border ${
+                              isRead
+                                ? 'bg-slate-50/60 border-slate-100 text-slate-400 opacity-60'
+                                : 'bg-[#FAF9F6] hover:bg-[#FFF5F5] border-[#E8E6E1] hover:border-[#FCD4D4] shadow-xs'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-bold transition-colors ${isRead ? 'text-slate-500' : 'text-slate-800 group-hover:text-[#E31C1C]'}`}>
+                                {lead.name}
                               </span>
-                            ) : (
-                              <span className="text-[9px] text-[#E31C1C] font-black uppercase tracking-wider bg-[#FFF5F5] border border-[#FCD4D4] px-1.5 py-0.2 rounded-md">
-                                {time}
-                              </span>
-                            )}
+                              <div className="flex items-center gap-1.5">
+                                {isOverdue ? (
+                                  <span className="text-[9px] text-white font-black uppercase tracking-wider bg-[#E31C1C] px-2 py-0.5 rounded-md animate-pulse">
+                                    Overdue • {time}
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] text-[#E31C1C] font-black uppercase tracking-wider bg-[#FFF5F5] border border-[#FCD4D4] px-1.5 py-0.2 rounded-md">
+                                    {time}
+                                  </span>
+                                )}
+                                {!isRead && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      markFollowUpAsRead(item);
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors border-0 bg-transparent cursor-pointer"
+                                    title="Mark as Done / Read"
+                                  >
+                                    <Check size={12} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+                              Please contact regarding <span className="text-slate-700 font-bold">{lead.course}</span> today.
+                            </p>
+                            <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest pt-1 border-t border-[#EBEAE6]/40 mt-1 flex items-center gap-1">
+                              <span>📞 Call or Send message</span>
+                              <span className="text-[#E31C1C] opacity-0 group-hover:opacity-100 transition-opacity ml-auto">View Profile →</span>
+                            </div>
                           </div>
-                          <p className="text-[10px] text-slate-500 font-semibold leading-normal">
-                            Please contact regarding <span className="text-slate-700 font-bold">{lead.course}</span> today.
-                          </p>
-                          <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest pt-1 border-t border-[#EBEAE6]/40 mt-1 flex items-center gap-1">
-                            <span>📞 Call or Send message</span>
-                            <span className="text-[#E31C1C] opacity-0 group-hover:opacity-100 transition-opacity ml-auto">View Profile →</span>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>

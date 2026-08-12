@@ -58,6 +58,12 @@ const FeePlanSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Paid amount cannot be negative'],
     },
+    // Remaining unallocated advance credit balance
+    advanceCreditBalance: {
+      type: Number,
+      default: 0,
+      min: [0, 'Advance credit cannot be negative'],
+    },
     // Overall payment status of the fee plan
     status: {
       type: String,

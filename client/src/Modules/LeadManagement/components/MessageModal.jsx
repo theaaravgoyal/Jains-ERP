@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { X, Send, Loader2 } from 'lucide-react';
 
 const STAFF_MEMBERS = [
-  "Neha",
   "Khushi Soni",
 ];
 

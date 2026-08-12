@@ -3,7 +3,6 @@ import { Calendar, Edit2, Trash2, ClipboardList } from 'lucide-react';
 import { formatDate } from '../../../utils/dateUtils';
 
 const STAFF_COLORS = {
-  "Neha": "bg-purple-500 text-white",
   "Khushi Soni": "bg-emerald-505 text-white",
 };
 

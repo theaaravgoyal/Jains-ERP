@@ -5,30 +5,7 @@ import RegisteredStudents from './RegisteredStudents';
 
 export default function AdmissionTab() {
   const [nestedTab, setNestedTab] = useState('new-admission'); // 'new-admission' | 'registered-students'
-  const [registeredStudents, setRegisteredStudents] = useState([
-    {
-      id: '1',
-      name: 'John Doe',
-      contact: '9876543210',
-      courses: ['Web Development', 'Python'],
-      batch: '10:00 AM - 12:00 PM',
-      enrollmentNo: 'JC-2026-1024',
-      paymentStatus: 'Partial',
-      totalFees: '15000',
-      paid: '5000'
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      contact: '8765432109',
-      courses: ['Graphic Designing'],
-      batch: '04:00 PM - 06:00 PM',
-      enrollmentNo: 'JC-2026-2048',
-      paymentStatus: 'Full',
-      totalFees: '8000',
-      paid: '8000'
-    }
-  ]);
+  const [registeredStudents, setRegisteredStudents] = useState([]);
   const [editingStudent, setEditingStudent] = useState(null);
 
   const handleAdmissionSubmit = (studentData) => {

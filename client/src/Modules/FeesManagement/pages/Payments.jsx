@@ -25,6 +25,7 @@ const Payments = ({ studentId, onNavigate }) => {
   } = useFeePlans(selectedStudent?._id);
 
   const [paymentForm, setPaymentForm] = useState({
+    paymentType: 'INSTALLMENT_PAYMENT',
     amount: '',
     paymentMode: 'UPI',
     transactionId: '',
@@ -50,6 +51,7 @@ const Payments = ({ studentId, onNavigate }) => {
           if (nextInstallment) {
             setPaymentForm(prev => ({
               ...prev,
+              paymentType: 'INSTALLMENT_PAYMENT',
               installmentId: nextInstallment._id,
               amount: nextInstallment.remainingAmount || ''
             }));
@@ -57,6 +59,7 @@ const Payments = ({ studentId, onNavigate }) => {
           } else {
             setPaymentForm(prev => ({
               ...prev,
+              paymentType: selectedStudent.feePlan?.paymentPlan === 'FULL_PAYMENT' ? 'FULL_PAYMENT' : 'ADVANCE_PAYMENT',
               installmentId: '',
               amount: remaining || ''
             }));
@@ -65,6 +68,7 @@ const Payments = ({ studentId, onNavigate }) => {
         } else if (!installmentsLoading) {
           setPaymentForm(prev => ({
             ...prev,
+            paymentType: selectedStudent.feePlan?.paymentPlan === 'FULL_PAYMENT' ? 'FULL_PAYMENT' : 'INITIAL_PAYMENT',
             installmentId: '',
             amount: remaining || ''
           }));
@@ -124,6 +128,7 @@ const Payments = ({ studentId, onNavigate }) => {
     setPaymentForm(prev => ({
       ...prev,
       installmentId: instId,
+      paymentType: instId ? 'INSTALLMENT_PAYMENT' : 'ADVANCE_PAYMENT',
       amount: inst ? inst.remainingAmount : ''
     }));
     setValidationError('');
@@ -158,25 +163,17 @@ const Payments = ({ studentId, onNavigate }) => {
     setSubmitting(true);
     setValidationError('');
     try {
-      // Determine payment type
-      let paymentType = 'PARTIAL_PAYMENT';
-      if (paymentForm.installmentId) {
-        const inst = installments.find(i => i._id === paymentForm.installmentId);
-        if (inst && payAmount === inst.remainingAmount) {
-          paymentType = 'INSTALLMENT_PAYMENT';
-        }
-      } else {
-        if (payAmount === totalRemaining) {
-          paymentType = 'FULL_PAYMENT';
-        }
+      let finalPaymentType = paymentForm.paymentType;
+      if (paymentForm.paymentType === 'INSTALLMENT_PAYMENT' && !paymentForm.installmentId) {
+        finalPaymentType = 'ADVANCE_PAYMENT';
       }
 
       const payload = {
         studentId: selectedStudent._id,
-        paymentType,
+        paymentType: finalPaymentType,
         paymentMode: paymentForm.paymentMode,
         amount: payAmount,
-        installmentId: paymentForm.installmentId || null,
+        installmentId: finalPaymentType === 'INSTALLMENT_PAYMENT' ? (paymentForm.installmentId || null) : null,
         transactionId: paymentForm.transactionId,
         remarks: paymentForm.remarks,
         paymentDate: paymentForm.paymentDate
@@ -284,23 +281,69 @@ const Payments = ({ studentId, onNavigate }) => {
                 </select>
               </div>
 
-              {/* Installment Link Dropdown Selector */}
+              {/* Payment Type Dropdown */}
               <div className="space-y-1">
-                <label className="block text-[10px] uppercase text-slate-400 font-bold">Link Payment to Installment</label>
+                <label className="block text-[10px] uppercase text-slate-400 font-bold">Payment Classification *</label>
                 <select
-                  value={paymentForm.installmentId}
-                  onChange={handleInstallmentChange}
-                  disabled={installmentsLoading || installments.length === 0}
-                  className="w-full px-3 py-2.5 border border-[#DEDCD8] bg-white rounded-xl font-bold cursor-pointer outline-none focus:border-amber-400 disabled:opacity-50"
+                  name="paymentType"
+                  value={paymentForm.paymentType}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2.5 border border-[#DEDCD8] bg-white rounded-xl font-bold cursor-pointer outline-none focus:border-amber-400"
                 >
-                  <option value="">-- No Specific Installment (Advance/Partial) --</option>
-                  {installments.filter(i => i.status !== 'PAID').map(i => (
-                    <option key={i._id} value={i._id}>
-                      Inst #{i.installmentNo} &mdash; Due {formatDate(i.dueDate)} ({formatINR(i.remainingAmount)})
-                    </option>
-                  ))}
+                  <option value="INSTALLMENT_PAYMENT">Installment Payment</option>
+                  <option value="INITIAL_PAYMENT">Initial / Admission Payment</option>
+                  <option value="ADVANCE_PAYMENT">Advance Payment</option>
+                  <option value="PARTIAL_PAYMENT">Partial Payment</option>
+                  <option value="FULL_PAYMENT">Full Plan Settlement</option>
                 </select>
               </div>
+
+              {/* Installment Link Dropdown Selector */}
+              {paymentForm.paymentType === 'INSTALLMENT_PAYMENT' && (
+                <div className="space-y-1">
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold">Link Payment to Installment *</label>
+                  <select
+                    value={paymentForm.installmentId}
+                    onChange={handleInstallmentChange}
+                    disabled={installmentsLoading || installments.length === 0}
+                    className="w-full px-3 py-2.5 border border-[#DEDCD8] bg-white rounded-xl font-bold cursor-pointer outline-none focus:border-amber-400 disabled:opacity-50"
+                    required
+                  >
+                    <option value="">-- Choose Installment --</option>
+                    {installments.filter(i => i.status !== 'PAID').map(i => (
+                      <option key={i._id} value={i._id}>
+                        Inst #{i.installmentNo} &mdash; Due {formatDate(i.dueDate)} ({formatINR(i.remainingAmount)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Live Overpayment / Advance Credit Banner */}
+              {paymentForm.paymentType === 'INSTALLMENT_PAYMENT' && paymentForm.installmentId && (() => {
+                const targetInst = installments.find(i => i._id === paymentForm.installmentId);
+                const enteredAmt = Number(paymentForm.amount) || 0;
+                if (targetInst && enteredAmt > targetInst.remainingAmount) {
+                  const extra = enteredAmt - targetInst.remainingAmount;
+                  return (
+                    <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-[11px] font-semibold text-amber-900 space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Scheduled Term Balance:</span>
+                        <span className="font-bold">{formatINR(targetInst.remainingAmount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Amount Received:</span>
+                        <span className="font-bold">{formatINR(enteredAmt)}</span>
+                      </div>
+                      <div className="flex justify-between text-blue-700 font-extrabold border-t border-amber-200/60 pt-1">
+                        <span>Advance Credit to Auto-Adjust:</span>
+                        <span>+ {formatINR(extra)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Amount field */}
               <div className="space-y-1">
@@ -396,6 +439,10 @@ const Payments = ({ studentId, onNavigate }) => {
                 <div className="flex justify-between py-1 border-b border-[#FAF9F6]">
                   <span className="text-slate-400">Paid Fees</span>
                   <span className="text-emerald-650">{formatINR(selectedStudent.feePlan?.paidAmount)}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-[#FAF9F6]">
+                  <span className="text-blue-500 font-bold">Advance Credit</span>
+                  <span className="text-blue-600 font-bold">{formatINR(selectedStudent.feePlan?.advanceCreditBalance || 0)}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-[#FAF9F6] text-slate-800">
                   <span className="text-slate-450 font-extrabold">Remaining Dues</span>

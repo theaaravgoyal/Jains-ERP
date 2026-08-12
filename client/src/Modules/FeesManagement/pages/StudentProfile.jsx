@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, User, Phone, Mail, BookOpen, 
   Calendar, CreditCard, CheckCircle2, AlertTriangle, 
-  FileText, CircleDot, Clock, Eye, AlertCircle, RefreshCw
+  FileText, CircleDot, Clock, Eye, AlertCircle, RefreshCw, X
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useSystemSettings } from '../context/SettingsContext';
@@ -23,6 +23,10 @@ const StudentProfile = ({ studentId, onNavigate }) => {
   const { studentProfile, loading: studentLoading, error: studentError, refetchProfile } = useStudents(studentId);
   const { feePlan, installments, loading: planLoading, error: planError, refetch: refetchPlan } = useFeePlans(studentId);
   const { studentPayments, activityLogs, loading: paymentsLoading, error: paymentsError, refetchStudentData, collectPayment } = usePayments(studentId);
+
+  const safeInstallments = installments || [];
+  const safePayments = studentPayments || [];
+  const safeLogs = activityLogs || [];
 
   // Modal control
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -80,7 +84,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
       
       // Auto-prefill amount if linking to specific installment
       if (name === 'installmentId' && value) {
-        const inst = installments.find(i => i._id === value);
+        const inst = safeInstallments.find(i => i._id === value);
         if (inst) {
           updated.amount = inst.remainingAmount;
           updated.paymentType = 'INSTALLMENT_PAYMENT';
@@ -145,9 +149,9 @@ const StudentProfile = ({ studentId, onNavigate }) => {
   };
 
   // Live indicators computed locally
-  const unpaidInstallments = installments.filter(inst => inst.status !== 'PAID');
-  const nextOverdueInst = installments.find(inst => inst.status === 'OVERDUE');
-  const nextPendingInst = installments.find(inst => inst.status === 'PENDING');
+  const unpaidInstallments = safeInstallments.filter(inst => inst.status !== 'PAID');
+  const nextOverdueInst = safeInstallments.find(inst => inst.status === 'OVERDUE');
+  const nextPendingInst = safeInstallments.find(inst => inst.status === 'PENDING');
   const nextDueDate = nextOverdueInst?.dueDate || nextPendingInst?.dueDate || '-';
 
   if (studentLoading && !studentProfile) {
@@ -219,7 +223,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
       </div>
 
       {/* Sticky Fee Summary Cards */}
-      <div className="sticky top-0 z-10 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 bg-slate-50/90 backdrop-blur-md py-3 border-b border-[#EBEAE6] -mx-4 px-4">
+      <div className="sticky top-0 z-10 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 bg-slate-50/90 backdrop-blur-md py-3 border-b border-[#EBEAE6] -mx-4 px-4">
         <div className="bg-white border border-[#EBEAE6] rounded-xl p-3 shadow-xs space-y-0.5 min-w-[120px]">
           <span className="text-[9px] text-slate-400 uppercase font-extrabold tracking-wider block">Total Course Fee</span>
           <h4 className="text-xs font-extrabold text-slate-800 truncate">{formatINR(studentProfile.feePlan?.totalFees)}</h4>
@@ -227,6 +231,10 @@ const StudentProfile = ({ studentId, onNavigate }) => {
         <div className="bg-white border border-[#EBEAE6] rounded-xl p-3 shadow-xs space-y-0.5 min-w-[120px]">
           <span className="text-[9px] text-emerald-500 uppercase font-extrabold tracking-wider block font-bold">Paid Amount</span>
           <h4 className="text-xs font-extrabold text-emerald-600 truncate">{formatINR(studentProfile.feePlan?.paidAmount)}</h4>
+        </div>
+        <div className="bg-white border border-[#EBEAE6] rounded-xl p-3 shadow-xs space-y-0.5 min-w-[120px]">
+          <span className="text-[9px] text-blue-500 uppercase font-extrabold tracking-wider block font-bold">Advance Credit</span>
+          <h4 className="text-xs font-extrabold text-blue-600 truncate">{formatINR(studentProfile.feePlan?.advanceCreditBalance || 0)}</h4>
         </div>
         <div className="bg-white border border-[#EBEAE6] rounded-xl p-3 shadow-xs space-y-0.5 min-w-[120px]">
           <span className="text-[9px] text-red-500 uppercase font-extrabold tracking-wider block font-bold">Remaining Amount</span>
@@ -325,11 +333,18 @@ const StudentProfile = ({ studentId, onNavigate }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#FAF9F6]">
-                    {installments.map((inst) => (
+                    {safeInstallments.map((inst) => (
                       <tr key={inst._id}>
                         <td className="py-2.5 font-bold text-slate-800">Inst #{inst.installmentNo}</td>
                         <td className="py-2.5 text-slate-500">{formatDate(inst.dueDate)}</td>
-                        <td className="py-2.5 text-slate-700">{formatINR(inst.amount)}</td>
+                        <td className="py-2.5 text-slate-700">
+                          {formatINR(inst.amount)}
+                          {inst.advanceApplied > 0 && (
+                            <span className="block text-[9px] text-blue-600 font-bold">
+                              +{formatINR(inst.advanceApplied)} advance applied
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2.5 text-emerald-650">{formatINR(inst.paidAmount)}</td>
                         <td className="py-2.5 text-slate-800 font-extrabold">{formatINR(inst.remainingAmount)}</td>
                         <td className="py-2.5 text-right"><StatusBadge status={inst.status} /></td>
@@ -345,7 +360,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
                         </td>
                       </tr>
                     ))}
-                    {installments.length === 0 && (
+                    {safeInstallments.length === 0 && (
                       <tr>
                         <td colSpan="7" className="py-8 text-center text-slate-400 font-bold text-[11px]">No installment schedules configured for student.</td>
                       </tr>
@@ -377,17 +392,24 @@ const StudentProfile = ({ studentId, onNavigate }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#FAF9F6]">
-                    {studentPayments.map((pay) => (
+                    {safePayments.map((pay) => (
                       <tr key={pay._id}>
                         <td className="py-2.5 font-mono text-slate-550 font-bold">{pay.transactionId || 'Cash Sale'}</td>
                         <td className="py-2.5 text-slate-700 font-bold">{pay.paymentMode}</td>
                         <td className="py-2.5"><span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{pay.paymentType}</span></td>
                         <td className="py-2.5 text-slate-500">{formatDate(pay.paymentDate)}</td>
-                        <td className="py-2.5 text-emerald-650 font-extrabold">{formatINR(pay.amount)}</td>
+                        <td className="py-2.5 text-emerald-650 font-extrabold">
+                          {formatINR(pay.amount)}
+                          {pay.advanceAmount > 0 && (
+                            <span className="block text-[9px] text-blue-600 font-bold">
+                              +{formatINR(pay.advanceAmount)} Extra Credit
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2.5"><StatusBadge status="PAID" /></td>
                       </tr>
                     ))}
-                    {studentPayments.length === 0 && (
+                    {safePayments.length === 0 && (
                       <tr>
                         <td colSpan="6" className="py-8 text-center text-slate-400 font-bold text-[11px]">No transactions cataloged.</td>
                       </tr>
@@ -428,6 +450,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
                     className="w-full px-3 py-2 border border-[#DEDCD8] bg-white rounded-xl font-bold cursor-pointer outline-none focus:border-amber-400"
                   >
                     <option value="INSTALLMENT_PAYMENT">Installment Payment</option>
+                    <option value="INITIAL_PAYMENT">Initial / Admission Payment</option>
                     <option value="PARTIAL_PAYMENT">Partial Payment</option>
                     <option value="ADVANCE_PAYMENT">Advance Payment</option>
                     <option value="FULL_PAYMENT">Full Plan Settlement</option>
@@ -459,12 +482,38 @@ const StudentProfile = ({ studentId, onNavigate }) => {
                     required
                   >
                     <option value="">-- Choose Installment --</option>
-                    {installments.filter(i => i.status !== 'PAID').map(i => (
+                    {safeInstallments.filter(i => i.status !== 'PAID').map(i => (
                       <option key={i._id} value={i._id}>Inst #{i.installmentNo} &mdash; Due {formatDate(i.dueDate)} ({formatINR(i.remainingAmount)})</option>
                     ))}
                   </select>
                 </div>
               )}
+
+              {/* Excess credit live calculation banner */}
+              {paymentForm.paymentType === 'INSTALLMENT_PAYMENT' && paymentForm.installmentId && (() => {
+                const targetInst = safeInstallments.find(i => i._id === paymentForm.installmentId);
+                const enteredAmt = Number(paymentForm.amount) || 0;
+                if (targetInst && enteredAmt > targetInst.remainingAmount) {
+                  const extra = enteredAmt - targetInst.remainingAmount;
+                  return (
+                    <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-[11px] font-semibold text-amber-900 space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Scheduled Term Balance:</span>
+                        <span className="font-bold">{formatINR(targetInst.remainingAmount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Amount Received:</span>
+                        <span className="font-bold">{formatINR(enteredAmt)}</span>
+                      </div>
+                      <div className="flex justify-between text-blue-700 font-extrabold border-t border-amber-200/60 pt-1">
+                        <span>Advance Credit to Auto-Adjust:</span>
+                        <span>+ {formatINR(extra)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="space-y-1">

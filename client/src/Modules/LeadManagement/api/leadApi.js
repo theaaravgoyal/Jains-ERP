@@ -43,7 +43,7 @@ export const leadApi = {
   },
 
   createOfflineLead: async (leadData) => {
-    const response = await leadAxios.post('/lead/offline', leadData);
+    const response = await leadAxios.post('/lead', leadData);
     return response.data;
   },
 

@@ -8,7 +8,6 @@ import ActivityModal from './ActivityModal';
 import { formatDate } from '../../../utils/dateUtils';
 
 const STAFF_MEMBERS = [
-  "Neha",
   "Khushi Soni",
 ];
 

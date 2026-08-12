@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { X, Send, Check } from 'lucide-react';
 
 const AGENTS = [
-  { id: 'neha', name: 'Neha', display: 'Neha' },
   { id: 'khushi', name: 'Khushi Soni', display: 'Khushi Soni' }
 ];
 
@@ -25,7 +24,7 @@ const TEMPLATES = [
 ];
 
 export default function WhatsAppWorkspaceModal({ lead, operatingStaff, onClose, onSave }) {
-  const defaultAgent = AGENTS.find(a => a.display === operatingStaff) || AGENTS.find(a => a.id === 'neha') || AGENTS[0];
+  const defaultAgent = AGENTS.find(a => a.display === operatingStaff) || AGENTS[0];
   const [selectedAgent, setSelectedAgent] = useState(defaultAgent);
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[2]); // Default to Syllabus & Details Share
   const [message, setMessage] = useState('');

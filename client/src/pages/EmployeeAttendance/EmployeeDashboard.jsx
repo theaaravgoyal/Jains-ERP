@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, 
@@ -77,7 +77,11 @@ export default function EmployeeDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  const isFetchingRef = useRef(false);
+
   const fetchStatus = async (silent = false) => {
+    if (isFetchingRef.current && silent) return;
+    isFetchingRef.current = true;
     try {
       if (!silent) setLoading(true);
       const res = await employeeApi.getTodayAttendance();
@@ -88,10 +92,11 @@ export default function EmployeeDashboard() {
     } catch (err) {
       if (!silent) {
         console.error('Failed to load status:', err);
-        setError('Failed to sync today\'s status.');
+        setError(err.userMessage || err.response?.data?.message || 'Failed to sync today\'s status.');
       }
     } finally {
       if (!silent) setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -138,25 +143,29 @@ export default function EmployeeDashboard() {
     fetchLeaves();
     fetchNotifications();
 
-    // Auto-sync in background every 6 seconds for real-time live updates without manual page reload
+    // Auto-sync in background every 15 seconds only when tab is active
     const interval = setInterval(() => {
-      fetchStatus(true);
-      fetchLeaves(true);
-      fetchNotifications();
-    }, 6000);
+      if (!document.hidden) {
+        fetchStatus(true);
+        fetchLeaves(true);
+        fetchNotifications();
+      }
+    }, 15000);
 
-    const onFocus = () => {
-      fetchStatus(true);
-      fetchLeaves(true);
-      fetchNotifications();
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchStatus(true);
+        fetchLeaves(true);
+        fetchNotifications();
+      }
     };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onVisibilityChange);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onVisibilityChange);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [employeeToken, navigate]);
 

@@ -64,7 +64,25 @@ const PaymentHistory = () => {
     {
       header: 'Received Amount',
       accessor: 'amount',
-      render: (rec) => <span className="text-emerald-600 font-extrabold">{formatINR(rec.amount)}</span>
+      render: (rec) => (
+        <div>
+          <span className="text-emerald-600 font-extrabold">{formatINR(rec.amount)}</span>
+          {rec.advanceAmount > 0 && (
+            <span className="block text-[9px] text-blue-600 font-bold">
+              +{formatINR(rec.advanceAmount)} Extra Credit
+            </span>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'Type',
+      accessor: 'paymentType',
+      render: (rec) => (
+        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+          {rec.paymentType?.replace('_', ' ') || 'PAYMENT'}
+        </span>
+      )
     },
     {
       header: 'Payment Mode',

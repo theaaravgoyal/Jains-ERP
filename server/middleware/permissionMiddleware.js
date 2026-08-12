@@ -4,8 +4,13 @@ const authorize = (permissionCode) => {
       return res.status(401).json({ success: false, message: 'Not authorized, login required.' });
     }
 
+    // Super Admin and Admin have access across all modules
+    if (req.user.role === 'Super Admin' || req.user.role === 'Admin') {
+      return next();
+    }
+
     // Check if user contains the requested permission code claim
-    const hasPermission = req.user.permissions.some(
+    const hasPermission = Array.isArray(req.user.permissions) && req.user.permissions.some(
       p => p.code === permissionCode
     );
 

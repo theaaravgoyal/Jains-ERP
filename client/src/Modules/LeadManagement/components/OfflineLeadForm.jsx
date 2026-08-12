@@ -22,7 +22,7 @@ const REFERENCE_SOURCES = [
 ];
 
 const COUNSELLORS = [
-  'Addish Jain', 'Rahul Sharma', 'Priya Gupta', 'Neha Singh', 'Amit Kumar',
+  'Khushi Soni',
 ];
 
 const EMPTY_FORM = {
@@ -30,7 +30,7 @@ const EMPTY_FORM = {
   contact: '',
   reference: '',
   course: '',
-  counsellor: '',
+  counsellor: 'Khushi Soni',
   date: new Date().toISOString().slice(0, 10),
 };
 
@@ -76,7 +76,7 @@ export default function OfflineLeadForm({ onSubmit, editingLead, onCancel }) {
       contact: form.contact.trim(),
       reference: form.reference || 'Walk-in',
       course: form.course || 'Not Specified',
-      counsellor: form.counsellor || 'Unassigned',
+      counsellor: form.counsellor || 'Khushi Soni',
       date: form.date,
     });
     if (!editingLead) handleReset();
@@ -216,12 +216,11 @@ export default function OfflineLeadForm({ onSubmit, editingLead, onCancel }) {
             <label className={labelCls}>Assigned Counsellor</label>
             <select
               className={inputCls}
-              value={form.counsellor}
+              value={form.counsellor || 'Khushi Soni'}
               onChange={e => set('counsellor', e.target.value)}
             >
-              <option value="">Select Counsellor</option>
               {COUNSELLORS.map(c => (
-                <option key={c}>{c}</option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>

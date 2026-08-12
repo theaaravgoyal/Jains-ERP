@@ -456,9 +456,17 @@ const Invoices = () => {
                     {settings?.invoice?.termsAndConditions || 'Fees once paid are non-refundable under normal circumstances. Pay before due date to avoid late fine assessments.'}
                   </p>
                 </div>
-                <div className="text-center self-end space-y-12">
-                  <div className="h-px bg-slate-300 w-2/3 mx-auto" />
-                  <span className="text-[10px] uppercase tracking-wider text-slate-450 font-bold block">
+                <div className="flex flex-col items-center justify-end text-center space-y-1">
+                  <div className="h-12 flex items-center justify-center">
+                    <img 
+                      src="/AuthSingh.jpeg" 
+                      alt="Authorized Signature" 
+                      className="max-h-12 w-auto object-contain"
+                      style={{ filter: 'brightness(0)' }}
+                    />
+                  </div>
+                  <div className="h-px bg-slate-400 w-36 mx-auto" />
+                  <span className="text-[10px] uppercase tracking-wider text-slate-700 font-extrabold block">
                     {settings?.invoice?.signaturePlaceholder || 'Authorized Signatory'}
                   </span>
                 </div>

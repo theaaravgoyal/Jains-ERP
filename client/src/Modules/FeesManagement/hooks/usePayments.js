@@ -21,7 +21,7 @@ export const usePayments = (studentId = null) => {
       }
     } catch (err) {
       console.error('Error fetching payments list:', err);
-      setError(err.response?.data?.message || 'Failed to retrieve payment history.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to retrieve payment history.');
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,7 @@ export const usePayments = (studentId = null) => {
       if (logsRes.success) setActivityLogs(logsRes.data || []);
     } catch (err) {
       console.error('Error fetching student transactions/logs:', err);
-      setError(err.response?.data?.message || 'Failed to sync student financial ledger.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to sync student financial ledger.');
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export const usePayments = (studentId = null) => {
       }
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to collect payment.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to collect payment.');
       throw err;
     } finally {
       setLoading(false);

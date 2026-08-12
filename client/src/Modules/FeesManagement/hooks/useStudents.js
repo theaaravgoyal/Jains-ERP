@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { feesApi } from '../../../api/feesApi';
 
 /**
@@ -10,7 +10,11 @@ export const useStudents = (studentId = null) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchStudents = useCallback(async () => {
+  const isFetchingRef = useRef(false);
+
+  const fetchStudents = useCallback(async (force = false) => {
+    if (isFetchingRef.current && !force) return;
+    isFetchingRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -20,9 +24,10 @@ export const useStudents = (studentId = null) => {
       }
     } catch (err) {
       console.error('Error fetching students:', err);
-      setError(err.response?.data?.message || 'Failed to fetch student profiles.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to fetch student profiles.');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
@@ -37,7 +42,7 @@ export const useStudents = (studentId = null) => {
       }
     } catch (err) {
       console.error('Error fetching student profile:', err);
-      setError(err.response?.data?.message || 'Failed to fetch student details.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to fetch student details.');
     } finally {
       setLoading(false);
     }
@@ -50,7 +55,7 @@ export const useStudents = (studentId = null) => {
       const res = await feesApi.createStudent(studentData);
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to register student.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to register student.');
       throw err;
     } finally {
       setLoading(false);
@@ -67,7 +72,7 @@ export const useStudents = (studentId = null) => {
       }
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update student profile.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to update student profile.');
       throw err;
     } finally {
       setLoading(false);
@@ -79,10 +84,10 @@ export const useStudents = (studentId = null) => {
     setError(null);
     try {
       const res = await feesApi.deleteStudent(id);
-      await fetchStudents();
+      await fetchStudents(true);
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete student.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to delete student.');
       throw err;
     } finally {
       setLoading(false);
@@ -102,7 +107,7 @@ export const useStudents = (studentId = null) => {
     studentProfile,
     loading,
     error,
-    refetchStudents: fetchStudents,
+    refetchStudents: () => fetchStudents(true),
     refetchProfile: () => fetchProfile(studentId),
     registerStudent,
     editStudent,
@@ -111,3 +116,4 @@ export const useStudents = (studentId = null) => {
 };
 
 export default useStudents;
+

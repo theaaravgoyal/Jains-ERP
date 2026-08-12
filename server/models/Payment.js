@@ -32,7 +32,7 @@ const PaymentSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Payment type classification is required'],
       enum: {
-        values: ['FULL_PAYMENT', 'INSTALLMENT_PAYMENT', 'PARTIAL_PAYMENT', 'ADVANCE_PAYMENT'],
+        values: ['FULL_PAYMENT', 'INSTALLMENT_PAYMENT', 'PARTIAL_PAYMENT', 'ADVANCE_PAYMENT', 'INITIAL_PAYMENT'],
         message: '{VALUE} is not a valid payment type',
       },
     },
@@ -41,7 +41,7 @@ const PaymentSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Payment mode is required'],
       enum: {
-        values: ['Cash', 'UPI', 'Card', 'Net Banking', 'Cheque'],
+        values: ['Cash', 'UPI', 'Card', 'Net Banking', 'Bank Transfer', 'Cheque'],
         message: '{VALUE} is not a valid payment mode',
       },
     },
@@ -50,6 +50,12 @@ const PaymentSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'Transaction amount is required'],
       min: [1, 'Payment amount must be greater than zero'],
+    },
+    // Extra advance credit generated from overpayment (if applicable)
+    advanceAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     // Gateway transaction hash or identifier (e.g. UPI Ref, Card Txn No, Check No)
     transactionId: {

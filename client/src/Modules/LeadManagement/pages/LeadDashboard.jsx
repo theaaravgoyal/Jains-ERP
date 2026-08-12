@@ -43,7 +43,25 @@ export default function LeadDashboard() {
   // Active tab state
   const [activeTab, setActiveTab] = useState('online');
 
-  // Filters State Hook
+  // Offline sources definition
+  const OFFLINE_SOURCES = useMemo(() => [
+    'walk-in', 'phone call', 'whatsapp', 'newspaper ad', 'pamphlet / flyer',
+    'banner / hoarding', 'friend / referral', 'school / college visit',
+    'exhibition / event', 'social media (organic)', 'other'
+  ], []);
+
+  const isOfflineLead = (lead) => {
+    if (!lead) return false;
+    const src = (lead.source || '').toLowerCase();
+    return OFFLINE_SOURCES.includes(src) || Boolean(lead.counsellor && lead.counsellor !== 'undefined');
+  };
+
+  // Filter online website leads strictly
+  const onlineLeads = useMemo(() => {
+    return Array.isArray(leads) ? leads.filter(l => !isOfflineLead(l)) : [];
+  }, [leads, OFFLINE_SOURCES]);
+
+  // Filters State Hook — scoped to online website leads
   const {
     searchQuery,
     setSearchQuery,
@@ -61,13 +79,13 @@ export default function LeadDashboard() {
     clearFilters,
     isFiltered,
     latestActivitiesMap
-  } = useLeadFilters(leads, staffSummary);
+  } = useLeadFilters(onlineLeads, staffSummary);
 
   // Compute today's follow-up reminders
   const todayFollowUps = useMemo(() => {
     const list = [];
-    if (!leads || !Array.isArray(leads)) return list;
-    leads.forEach((lead) => {
+    if (!onlineLeads || !Array.isArray(onlineLeads)) return list;
+    onlineLeads.forEach((lead) => {
       if (!lead) return;
       const leadId = lead._id || lead.id;
       if (!leadId) return;
@@ -115,7 +133,7 @@ export default function LeadDashboard() {
     return map;
   }, [staffSummary]);
 
-  // Compute status cards metrics
+  // Compute status cards metrics for online leads
   const statsCounts = useMemo(() => {
     const counts = {
       New: 0,
@@ -124,7 +142,7 @@ export default function LeadDashboard() {
       Converted: 0,
       'Not Interested': 0,
     };
-    leads.forEach((l) => {
+    onlineLeads.forEach((l) => {
       const leadId = l._id || l.id;
       const hasActivity = latestActivitiesMap && latestActivitiesMap[leadId];
       const status = l.status || 'New';
@@ -145,7 +163,7 @@ export default function LeadDashboard() {
       }
     });
     return counts;
-  }, [leads, latestActivitiesMap]);
+  }, [onlineLeads, latestActivitiesMap]);
 
 
   const handleUpdateStatus = async (leadId, nextStatus) => {

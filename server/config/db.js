@@ -24,105 +24,120 @@ const RolePermission = require('../models/RolePermission');
 
 const seedDefaultAuthData = async () => {
   try {
-    const userCount = await User.countDocuments();
-    if (userCount === 0) {
-      console.log('No users found in database. Seeding default RBAC & Admin user...');
+    // 1. Create / Upsert Permissions
+    const permissionsData = [
+      {
+        name: 'Attendance Module Access',
+        code: 'access_attendance',
+        module: 'Attendance Management',
+        route: '/attendance',
+        icon: 'ClipboardList',
+        description: 'Read and write attendance access logs.'
+      },
+      {
+        name: 'Fees Module Access',
+        code: 'access_fees',
+        module: 'Fees Management',
+        route: '/fees-management',
+        icon: 'DollarSign',
+        description: 'Oversee invoice receipts and due collections.'
+      },
+      {
+        name: 'Lead Module Access',
+        code: 'access_leads',
+        module: 'Lead Management',
+        route: '/lead-management',
+        icon: 'UserCheck',
+        description: 'Read and write leads database logs.'
+      },
+      {
+        name: 'Certificate Module Access',
+        code: 'access_certificates',
+        module: 'Certificate Management',
+        route: '/certificate-management',
+        icon: 'Award',
+        description: 'Create and verify student certificates.'
+      }
+    ];
 
-      // 1. Create Permissions
-      const permissionsData = [
-        {
-          name: 'Attendance Module Access',
-          code: 'access_attendance',
-          module: 'Attendance Management',
-          route: '/attendance',
-          icon: 'ClipboardList',
-          description: 'Read and write attendance access logs.'
-        },
-        {
-          name: 'Fees Module Access',
-          code: 'access_fees',
-          module: 'Fees Management',
-          route: '/fees-management',
-          icon: 'DollarSign',
-          description: 'Oversee invoice receipts and due collections.'
-        },
-        {
-          name: 'Lead Module Access',
-          code: 'access_leads',
-          module: 'Lead Management',
-          route: '/lead-management',
-          icon: 'UserCheck',
-          description: 'Read and write leads database logs.'
-        },
-        {
-          name: 'Certificate Module Access',
-          code: 'access_certificates',
-          module: 'Certificate Management',
-          route: '/certificate-management',
-          icon: 'Award',
-          description: 'Create and verify student certificates.'
-        },
-        {
-          name: 'Website Module Access',
-          code: 'access_site',
-          module: 'Website Management',
-          route: '/site-management',
-          icon: 'Globe',
-          description: 'Manage site operations and website settings.'
+    // Clean up deprecated access_site permission if present
+    await Permission.deleteMany({ code: 'access_site' });
+
+    const permissions = {};
+    for (let pData of permissionsData) {
+      const p = await Permission.findOneAndUpdate(
+        { code: pData.code },
+        pData,
+        { new: true, upsert: true }
+      );
+      permissions[p.code] = p._id;
+    }
+
+    // 2. Create / Upsert Roles
+    const rolesList = [
+      { name: 'Super Admin', description: 'Full access across all modules.' },
+      { name: 'Attendance Admin', description: 'Restricted access to Personnel logbooks.' },
+      { name: 'Fees Admin', description: 'Restricted access to financials and billings.' },
+      { name: 'Lead Admin', description: 'Restricted access to Lead management logs.' }
+    ];
+
+    // Clean up deprecated Website Admin role if present
+    await Role.deleteMany({ name: 'Website Admin' });
+
+    const roles = {};
+    for (let rData of rolesList) {
+      const r = await Role.findOneAndUpdate(
+        { name: rData.name },
+        rData,
+        { new: true, upsert: true }
+      );
+      roles[r.name] = r._id;
+    }
+
+    // 3. Map Roles to Permissions
+    await RolePermission.deleteMany();
+    const rolePermissionMappings = [
+      { roleName: 'Super Admin', permissionCode: 'access_attendance' },
+      { roleName: 'Super Admin', permissionCode: 'access_fees' },
+      { roleName: 'Super Admin', permissionCode: 'access_leads' },
+      { roleName: 'Super Admin', permissionCode: 'access_certificates' },
+      { roleName: 'Attendance Admin', permissionCode: 'access_attendance' },
+      { roleName: 'Fees Admin', permissionCode: 'access_fees' },
+      { roleName: 'Lead Admin', permissionCode: 'access_leads' }
+    ];
+
+    for (let mapping of rolePermissionMappings) {
+      const roleId = roles[mapping.roleName];
+      const permissionId = permissions[mapping.permissionCode];
+      if (roleId && permissionId) {
+        await RolePermission.create({ role: roleId, permission: permissionId });
+      }
+    }
+
+    // 4. Auto-heal all existing users' role references
+    const existingUsers = await User.find({});
+    for (const u of existingUsers) {
+      const isInvalidRole = !u.role || 
+        typeof u.role === 'string' || 
+        !Object.values(roles).some(rId => rId.toString() === u.role.toString());
+
+      if (isInvalidRole) {
+        let assignedRole = roles['Super Admin'];
+        if (typeof u.role === 'string') {
+          const lower = u.role.toLowerCase();
+          if (lower.includes('attendance')) assignedRole = roles['Attendance Admin'];
+          else if (lower.includes('website')) assignedRole = roles['Website Admin'];
+          else if (lower.includes('fee')) assignedRole = roles['Fees Admin'];
+          else if (lower.includes('lead')) assignedRole = roles['Lead Admin'];
+          else assignedRole = roles['Super Admin'];
         }
-      ];
-
-      const permissions = {};
-      for (let pData of permissionsData) {
-        const p = await Permission.findOneAndUpdate(
-          { code: pData.code },
-          pData,
-          { new: true, upsert: true }
-        );
-        permissions[p.code] = p._id;
+        await User.updateOne({ _id: u._id }, { $set: { role: assignedRole } });
+        console.log(`[RBAC Auto-Heal] Updated role for user: ${u.email} to ${assignedRole}`);
       }
+    }
 
-      // 2. Create Roles
-      const rolesList = [
-        { name: 'Super Admin', description: 'Full access across all modules.' },
-        { name: 'Attendance Admin', description: 'Restricted access to Personnel logbooks.' },
-        { name: 'Website Admin', description: 'Restricted access to Site operations.' },
-        { name: 'Fees Admin', description: 'Restricted access to financials and billings.' },
-        { name: 'Lead Admin', description: 'Restricted access to Lead management logs.' }
-      ];
-
-      const roles = {};
-      for (let rData of rolesList) {
-        const r = await Role.findOneAndUpdate(
-          { name: rData.name },
-          rData,
-          { new: true, upsert: true }
-        );
-        roles[r.name] = r._id;
-      }
-
-      // 3. Map Roles to Permissions
-      await RolePermission.deleteMany();
-      const rolePermissionMappings = [
-        { roleName: 'Super Admin', permissionCode: 'access_attendance' },
-        { roleName: 'Super Admin', permissionCode: 'access_fees' },
-        { roleName: 'Super Admin', permissionCode: 'access_leads' },
-        { roleName: 'Super Admin', permissionCode: 'access_certificates' },
-        { roleName: 'Attendance Admin', permissionCode: 'access_attendance' },
-        { roleName: 'Website Admin', permissionCode: 'access_site' },
-        { roleName: 'Fees Admin', permissionCode: 'access_fees' },
-        { roleName: 'Lead Admin', permissionCode: 'access_leads' }
-      ];
-
-      for (let mapping of rolePermissionMappings) {
-        const roleId = roles[mapping.roleName];
-        const permissionId = permissions[mapping.permissionCode];
-        if (roleId && permissionId) {
-          await RolePermission.create({ role: roleId, permission: permissionId });
-        }
-      }
-
-      // 4. Create Super Admin User
+    // 5. Create Super Admin User if no users exist
+    if (existingUsers.length === 0) {
       const adminUser = {
         name: 'Aadish Jain',
         email: 'aadishjaindesign@gmail.com',
@@ -134,7 +149,7 @@ const seedDefaultAuthData = async () => {
       console.log('Successfully seeded default Super Admin: aadishjaindesign@gmail.com');
     }
   } catch (err) {
-    console.error('Failed to seed default auth/RBAC data:', err.message);
+    console.error('Failed to seed/sync default auth/RBAC data:', err.message);
   }
 };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { leadService } from '../services/leadService';
 
 export const useLeads = () => {
@@ -6,23 +6,28 @@ export const useLeads = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [countdown, setCountdown] = useState(45);
+  const isFetchingRef = useRef(false);
 
-  const fetchLeads = useCallback(async () => {
+  const fetchLeads = useCallback(async (force = false) => {
+    if (isFetchingRef.current && !force) return;
+    isFetchingRef.current = true;
     try {
       setLoading(true);
       setError(null);
       const data = await leadService.getLeads();
-      setLeads(data);
+      setLeads(data || []);
     } catch (err) {
-      setError('Failed to fetch leads from server.');
-      console.error(err);
+      setError(err.userMessage || err.message || 'Failed to fetch leads from server.');
+      console.error('Lead fetch error:', err);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
-  // Auto-refresh countdown
+  // Auto-refresh countdown (45 seconds)
   useEffect(() => {
+    fetchLeads();
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -32,11 +37,8 @@ export const useLeads = () => {
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(timer);
-  }, [fetchLeads]);
 
-  useEffect(() => {
-    fetchLeads();
+    return () => clearInterval(timer);
   }, [fetchLeads]);
 
   const updateLeadStatus = async (leadId, status) => {

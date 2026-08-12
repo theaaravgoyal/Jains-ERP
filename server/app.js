@@ -14,24 +14,56 @@ app.set('trust proxy', true);
 
 // Middlewares
 app.use(compression());
+
+const allowedOrigins = [
+  'https://erp-portal-pi.vercel.app',
+  'https://jainsworkspace.com',
+  'https://www.jainsworkspace.com',
+  'https://api.jainsworkspace.com',
+  'https://attendance-app-xi-sand.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+];
+
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow all origins (Vercel, local network, mobile apps, Postman)
-    callback(null, true);
+    // Allow non-browser callers (curl, mobile, webhooks, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (
+      allowedOrigins.includes(origin) ||
+      /\.vercel\.app$/.test(new URL(origin).hostname) ||
+      /localhost/.test(origin) ||
+      /127\.0\.0\.1/.test(origin)
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  maxAge: 86400 // Cache preflight OPTIONS responses for 24h to cut preflight HTTP traffic
 };
 
 app.use(cors(corsOptions));
 
 const securityHeaders = require('./middleware/securityHeadersMiddleware');
-const rateLimiter = require('./middleware/rateLimitMiddleware');
+const { apiLimiter, authLimiter } = require('./middleware/rateLimitMiddleware');
 const nosqlSanitizer = require('./middleware/nosqlInjectionMiddleware');
 
 app.use(securityHeaders);
-app.use(rateLimiter(15 * 60 * 1000, 150)); // sliding window rate-limiting
+app.use('/auth', authLimiter);
+app.use('/api/auth', authLimiter);
+app.use('/employee/login', authLimiter);
+app.use('/api/employee/login', authLimiter);
+app.use('/employee/register', authLimiter);
+app.use('/api/employee/register', authLimiter);
+app.use(apiLimiter); // General sliding-window rate limit (1500 req / 15m)
 app.use(nosqlSanitizer); // prevent nosql query injection attacks
 
 app.use(express.json({ limit: '10mb' }));

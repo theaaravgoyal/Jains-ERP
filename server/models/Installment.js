@@ -63,6 +63,12 @@ const InstallmentSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Paid amount cannot be negative'],
     },
+    // Amount of advance credit applied to this installment
+    advanceApplied: {
+      type: Number,
+      default: 0,
+      min: [0, 'Advance applied cannot be negative'],
+    },
     // Remaining unpaid balance of this installment
     remainingAmount: {
       type: Number,

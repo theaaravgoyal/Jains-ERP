@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { feesApi } from '../../../api/feesApi';
 
 /**
@@ -15,14 +15,21 @@ export const useDashboard = (filterType, customRange, isApplyingCustom) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchDashboardData = useCallback(async () => {
+  const isFetchingRef = useRef(false);
+  const startDate = customRange?.startDate || '';
+  const endDate = customRange?.endDate || '';
+
+  const fetchDashboardData = useCallback(async (force = false) => {
+    if (isFetchingRef.current && !force) return;
+    isFetchingRef.current = true;
     setLoading(true);
     setError(null);
+
     try {
       const summaryParams = { filterType };
       if (filterType === 'custom') {
-        summaryParams.startDate = customRange.startDate;
-        summaryParams.endDate = customRange.endDate;
+        summaryParams.startDate = startDate;
+        summaryParams.endDate = endDate;
       }
 
       const [
@@ -52,11 +59,12 @@ export const useDashboard = (filterType, customRange, isApplyingCustom) => {
       if (activitiesRes.success) setTimelineActivities(activitiesRes.data || []);
     } catch (err) {
       console.error('Error fetching dashboard metrics:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to sync live dashboard panels.');
+      setError(err.userMessage || err.response?.data?.message || err.message || 'Failed to sync live dashboard panels.');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [filterType, customRange, isApplyingCustom]);
+  }, [filterType, startDate, endDate, isApplyingCustom]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -72,8 +80,9 @@ export const useDashboard = (filterType, customRange, isApplyingCustom) => {
     timelineActivities,
     loading,
     error,
-    refetch: fetchDashboardData
+    refetch: () => fetchDashboardData(true)
   };
 };
 
 export default useDashboard;
+

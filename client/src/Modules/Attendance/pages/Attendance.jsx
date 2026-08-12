@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Check, X, ShieldAlert, Sparkles, 
-  Calendar, Users, Clock, Search, Plus, User, AlertCircle, Edit2, FileSpreadsheet, Trash2
+  Calendar, Users, Clock, Search, Plus, User, AlertCircle, Edit2, FileSpreadsheet, Trash2, Eye
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminAttendanceApi } from '../../../api/adminAttendanceApi';
@@ -21,6 +21,7 @@ export default function Attendance() {
   const [chartStats, setChartStats] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'all_employees'
+  const [selectedLeave, setSelectedLeave] = useState(null);
   
   // UI States
   const [loading, setLoading] = useState(true);
@@ -56,7 +57,11 @@ export default function Attendance() {
   const [editFormProfilePicture, setEditFormProfilePicture] = useState('');
   const [editFormError, setEditFormError] = useState('');
 
+  const isFetchingRef = useRef(false);
+
   const fetchData = async (silent = false) => {
+    if (isFetchingRef.current && silent) return;
+    isFetchingRef.current = true;
     try {
       if (!silent) setLoading(true);
       setError('');
@@ -77,31 +82,36 @@ export default function Attendance() {
     } catch (err) {
       if (!silent) {
         console.error('Failed to fetch attendance dashboard data:', err);
-        const errMsg = err.response?.data?.message || err.message || 'Failed to sync attendance logbooks with server.';
+        const errMsg = err.userMessage || err.response?.data?.message || err.message || 'Failed to sync attendance logbooks with server.';
         setError(`Failed to sync attendance logbooks: ${errMsg}`);
       }
     } finally {
       if (!silent) setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
   useEffect(() => {
     fetchData();
-    // Auto-refresh in background every 8 seconds for real-time live updates without manual reload
+    // Auto-refresh in background every 15 seconds only when tab is active
     const interval = setInterval(() => {
-      fetchData(true);
-    }, 8000);
+      if (!document.hidden) {
+        fetchData(true);
+      }
+    }, 15000);
 
-    const onFocus = () => {
-      fetchData(true);
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchData(true);
+      }
     };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onVisibilityChange);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onVisibilityChange);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 
@@ -1015,7 +1025,19 @@ export default function Attendance() {
                                 <td className="py-3 text-slate-550 text-xs font-semibold">
                                   {formatDate(item.startDate)} - {formatDate(item.endDate)}
                                 </td>
-                                <td className="py-3 italic text-slate-550 max-w-[120px] truncate text-xs" title={item.reason}>{item.reason}</td>
+                                <td className="py-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedLeave(item)}
+                                    className="text-left group flex items-center gap-1.5 max-w-[180px] hover:bg-slate-100/80 px-2 py-1 -mx-2 rounded-lg transition-all cursor-pointer border-0 bg-transparent"
+                                    title="Click to read full message"
+                                  >
+                                    <span className="italic text-slate-600 truncate text-xs group-hover:text-slate-900 group-hover:underline font-medium">
+                                      {item.reason}
+                                    </span>
+                                    <Eye size={12} className="text-slate-400 group-hover:text-brand-red shrink-0" />
+                                  </button>
+                                </td>
                                 <td className="py-3">
                                   <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase text-white ${
                                     item.status === 'Approved'
@@ -1890,6 +1912,109 @@ export default function Attendance() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* LEAVE DETAILS FULL MESSAGE MODAL */}
+      {selectedLeave && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-md shadow-2xl p-6 relative flex flex-col space-y-4">
+            
+            {/* Close button */}
+            <button 
+              onClick={() => setSelectedLeave(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all cursor-pointer outline-none"
+            >
+              <X size={16} />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 text-brand-red flex items-center justify-center font-bold text-sm">
+                {selectedLeave.employee?.name ? selectedLeave.employee.name[0] : 'L'}
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-800">
+                  {selectedLeave.employee ? (selectedLeave.employee.lastName ? `${selectedLeave.employee.name} ${selectedLeave.employee.lastName}` : selectedLeave.employee.name) : 'Employee'}
+                </h3>
+                <span className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">
+                  {selectedLeave.leaveType} Leave Application
+                </span>
+              </div>
+            </div>
+
+            {/* Duration & Status Info */}
+            <div className="grid grid-cols-2 gap-3 bg-[#FAF9F6] p-3.5 rounded-2xl border border-[#E8E6E1] text-xs">
+              <div>
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Duration</span>
+                <span className="font-bold text-slate-800 text-[11px]">
+                  {formatDate(selectedLeave.startDate)} &mdash; {formatDate(selectedLeave.endDate)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Status</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase inline-block mt-0.5 text-white ${
+                  selectedLeave.status === 'Approved'
+                    ? 'bg-green-500'
+                    : selectedLeave.status === 'Rejected'
+                    ? 'bg-red-500'
+                    : 'bg-amber-400'
+                }`}>
+                  {selectedLeave.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Full Message Body */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                Complete Leave Reason Message:
+              </label>
+              <div className="bg-[#FAF9F6] border border-[#DEDCD8] rounded-2xl p-4 text-xs font-semibold text-slate-750 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                {selectedLeave.reason || 'No detailed message provided.'}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2.5 pt-2 border-t border-slate-100">
+              {selectedLeave.status === 'Pending' && (
+                <>
+                  <button
+                    onClick={async () => {
+                      await handleApproveLeave(selectedLeave._id);
+                      setSelectedLeave(null);
+                    }}
+                    disabled={actionLoading}
+                    className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all cursor-pointer shadow-sm border-0 flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <Check size={14} />
+                    <span>Approve</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await handleRejectLeave(selectedLeave._id);
+                      setSelectedLeave(null);
+                    }}
+                    disabled={actionLoading}
+                    className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold transition-all cursor-pointer shadow-sm border-0 flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <X size={14} />
+                    <span>Reject</span>
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedLeave(null)}
+                className={`py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold transition-all cursor-pointer ${
+                  selectedLeave.status === 'Pending' ? 'px-4' : 'w-full'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}

@@ -115,7 +115,7 @@ class InstallmentRepository {
    * @param {Object|null} session - Transaction session.
    */
   async find(filter, sort = {}, session = null) {
-    const query = Installment.find({ ...filter, deletedAt: null }).sort(sort).lean();
+    const query = Installment.find({ ...filter, deletedAt: null }).sort(sort);
     if (session) query.session(session);
     return await query;
   }

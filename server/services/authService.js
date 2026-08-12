@@ -11,6 +11,107 @@ class AuthService {
     );
   }
 
+  async resolveRoleAndPermissions(user) {
+    const Role = require('../models/Role');
+    const Permission = require('../models/Permission');
+
+    let roleName = 'Super Admin';
+    let roleId = null;
+
+    // 1. If role is populated object with _id and name
+    if (user.role && typeof user.role === 'object' && user.role._id) {
+      roleId = user.role._id;
+      roleName = user.role.name || 'Super Admin';
+    } 
+    // 2. If role is an ObjectId or string ID
+    else if (user.role && (typeof user.role === 'object' || (typeof user.role === 'string' && /^[0-9a-fA-F]{24}$/.test(user.role)))) {
+      try {
+        const foundRole = await Role.findById(user.role);
+        if (foundRole) {
+          roleId = foundRole._id;
+          roleName = foundRole.name;
+        }
+      } catch (e) {
+        console.warn('Role findById lookup failed:', e.message);
+      }
+    } 
+    // 3. If role is a string name (e.g. 'admin', 'Super Admin')
+    else if (typeof user.role === 'string') {
+      try {
+        const isSuper = ['admin', 'super admin', 'superadmin'].includes(user.role.toLowerCase());
+        const roleQuery = isSuper ? 'Super Admin' : user.role;
+        const foundRole = await Role.findOne({ name: new RegExp('^' + roleQuery + '$', 'i') });
+        if (foundRole) {
+          roleId = foundRole._id;
+          roleName = foundRole.name;
+        }
+      } catch (e) {
+        console.warn('Role findOne lookup failed:', e.message);
+      }
+    }
+
+    // 4. Fallback if still not found
+    if (!roleId) {
+      try {
+        let defaultRole = await Role.findOne({ name: 'Super Admin' }) || await Role.findOne();
+        if (!defaultRole) {
+          defaultRole = await Role.create({ name: 'Super Admin', description: 'Full administrative access' });
+        }
+        roleId = defaultRole._id;
+        roleName = defaultRole.name;
+        // Auto heal user record in database
+        const User = require('../models/User');
+        await User.updateOne({ _id: user._id }, { $set: { role: roleId } }).catch(() => {});
+      } catch (e) {
+        console.warn('Fallback role creation/lookup failed:', e.message);
+      }
+    }
+
+    // 5. Resolve permissions
+    let permissions = [];
+    if (roleId) {
+      try {
+        permissions = await permissionRepository.findPermissionsByRoleId(roleId);
+      } catch (err) {
+        console.warn('Failed to load role permissions from repo:', err.message);
+      }
+    }
+
+    // If permissions are empty or user is Super Admin, ensure all active permissions are present
+    if ((!permissions || permissions.length === 0) || roleName === 'Super Admin' || roleName === 'Admin') {
+      try {
+        const allPerms = await Permission.find({});
+        if (allPerms.length > 0) {
+          permissions = allPerms;
+        }
+      } catch (err) {
+        console.warn('Failed to query all permissions:', err.message);
+      }
+    }
+
+    // Standard fallback list if DB permissions collection is empty
+    if (!permissions || permissions.length === 0) {
+      permissions = [
+        { code: 'access_attendance', name: 'Attendance Module Access', route: '/attendance', module: 'Attendance Management', icon: 'ClipboardList' },
+        { code: 'access_fees', name: 'Fees Module Access', route: '/fees-management', module: 'Fees Management', icon: 'DollarSign' },
+        { code: 'access_leads', name: 'Lead Module Access', route: '/lead-management', module: 'Lead Management', icon: 'UserCheck' },
+        { code: 'access_certificates', name: 'Certificate Module Access', route: '/certificate-management', module: 'Certificate Management', icon: 'Award' }
+      ];
+    }
+
+    return {
+      roleName: roleName || 'Super Admin',
+      roleId,
+      permissions: permissions.map(p => ({
+        code: p.code,
+        name: p.name,
+        route: p.route,
+        module: p.module,
+        icon: p.icon
+      }))
+    };
+  }
+
   async authenticate(email, password) {
     let user = null;
     let isDbConnected = false;
@@ -19,7 +120,7 @@ class AuthService {
       user = await userRepository.findByEmail(email, true);
       isDbConnected = true;
     } catch (dbError) {
-      console.warn('Database query failed in AuthService, checking memory fallbacks.');
+      console.warn('Database query failed in AuthService, checking memory fallbacks.', dbError.message);
     }
 
     if (user) {
@@ -34,8 +135,8 @@ class AuthService {
         throw new Error('Invalid credentials');
       }
 
-      // Fetch dynamic permissions from DB-driven role relationship
-      const permissions = await permissionRepository.findPermissionsByRoleId(user.role._id);
+      // Fetch dynamic permissions and resolve role safely
+      const { roleName, permissions } = await this.resolveRoleAndPermissions(user);
 
       return {
         token: this.generateToken(user._id, user.email),
@@ -43,14 +144,8 @@ class AuthService {
           id: user._id,
           name: user.name,
           email: user.email,
-          role: user.role.name,
-          permissions: permissions.map(p => ({
-            code: p.code,
-            name: p.name,
-            route: p.route,
-            module: p.module,
-            icon: p.icon
-          })),
+          role: roleName,
+          permissions,
           status: user.status
         }
       };
@@ -78,8 +173,6 @@ class AuthService {
         ],
         'Attendance Admin': [
           { code: 'access_attendance', name: 'Attendance Access', route: '/attendance', module: 'Attendance Management', icon: 'ClipboardList' }
-        ],
-        'Website Admin': [
         ],
         'Fees Admin': [
           { code: 'access_fees', name: 'Fees Access', route: '/fees-management', module: 'Fees Management', icon: 'DollarSign' }
@@ -121,19 +214,13 @@ class AuthService {
       if (user.status !== 'active') {
         throw new Error('Your account is inactive. Access denied.');
       }
-      const permissions = await permissionRepository.findPermissionsByRoleId(user.role._id);
+      const { roleName, permissions } = await this.resolveRoleAndPermissions(user);
       return {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role.name,
-        permissions: permissions.map(p => ({
-          code: p.code,
-          name: p.name,
-          route: p.route,
-          module: p.module,
-          icon: p.icon
-        })),
+        role: roleName,
+        permissions,
         status: user.status
       };
     }

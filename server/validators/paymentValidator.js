@@ -17,7 +17,7 @@ const validatePaymentInput = (req, res, next) => {
   }
 
   // Validate paymentType enum
-  const allowedTypes = ['FULL_PAYMENT', 'INSTALLMENT_PAYMENT', 'PARTIAL_PAYMENT', 'ADVANCE_PAYMENT'];
+  const allowedTypes = ['FULL_PAYMENT', 'INSTALLMENT_PAYMENT', 'PARTIAL_PAYMENT', 'ADVANCE_PAYMENT', 'INITIAL_PAYMENT'];
   if (!paymentType) {
     errors.push('Payment type is required.');
   } else if (!allowedTypes.includes(paymentType)) {
@@ -25,7 +25,7 @@ const validatePaymentInput = (req, res, next) => {
   }
 
   // Validate paymentMode enum
-  const allowedModes = ['Cash', 'UPI', 'Card', 'Net Banking', 'Cheque'];
+  const allowedModes = ['Cash', 'UPI', 'Card', 'Net Banking', 'Bank Transfer', 'Cheque'];
   if (!paymentMode) {
     errors.push('Payment mode is required.');
   } else if (!allowedModes.includes(paymentMode)) {

@@ -28,21 +28,22 @@ class ReceiptRepository {
    * @param {Object|null} session - Transaction session to lock reads.
    */
   async getNextReceiptNumber(session = null) {
-    const query = { receiptNumber: /^RCP\d+/ };
-    const options = session ? { session, sort: { receiptNumber: -1 } } : { sort: { receiptNumber: -1 } };
-    
-    const lastReceipt = await Receipt.findOne(query, null, options);
+    const currentYear = new Date().getFullYear();
+    const prefix = `RCP-${currentYear}-`;
+    const q = Receipt.findOne({ receiptNumber: new RegExp(`^${prefix}`) }).sort({ receiptNumber: -1 });
+    if (session) q.session(session);
+    const lastReceipt = await q;
 
     let nextNum = 1;
     if (lastReceipt && lastReceipt.receiptNumber) {
-      const numPart = lastReceipt.receiptNumber.replace('RCP', '');
-      const parsed = parseInt(numPart, 10);
-      if (!isNaN(parsed)) {
-        nextNum = parsed + 1;
+      const parts = lastReceipt.receiptNumber.split('-');
+      const lastNum = parseInt(parts[2] || parts[parts.length - 1], 10);
+      if (!isNaN(lastNum)) {
+        nextNum = lastNum + 1;
       }
     }
 
-    return `RCP${String(nextNum).padStart(6, '0')}`;
+    return `${prefix}${String(nextNum).padStart(6, '0')}`;
   }
 
   /**

@@ -18,7 +18,8 @@ const ProtectedRoute = ({ children, requiredPermission }) => {
 
   // Database-Driven Permission Checks
   if (requiredPermission && user) {
-    const hasPermission = user.permissions.some(p => p.code === requiredPermission);
+    const isSuperAdmin = user.role === 'Super Admin' || user.role === 'Admin';
+    const hasPermission = isSuperAdmin || (Array.isArray(user.permissions) && user.permissions.some(p => p.code === requiredPermission));
     if (!hasPermission) {
       return <Navigate to={ROUTES.UNAUTHORIZED} replace />;
     }

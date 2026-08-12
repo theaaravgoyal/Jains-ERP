@@ -28,7 +28,7 @@ export const useFeePlans = (studentId = null) => {
       console.error('Error fetching fee plan/installments:', err);
       // Suppress 404 for fee plan setup triggers
       if (err.response?.status !== 404) {
-        setError(err.response?.data?.message || 'Failed to fetch Fee Plan.');
+        setError(err.userMessage || err.response?.data?.message || 'Failed to fetch Fee Plan.');
       } else {
         setFeePlan(null);
         setInstallments([]);
@@ -48,7 +48,7 @@ export const useFeePlans = (studentId = null) => {
       }
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to setup Fee Plan.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to setup Fee Plan.');
       throw err;
     } finally {
       setLoading(false);
@@ -63,7 +63,7 @@ export const useFeePlans = (studentId = null) => {
       await fetchFeePlan(id);
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update Fee Plan.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to update Fee Plan.');
       throw err;
     } finally {
       setLoading(false);
@@ -79,7 +79,7 @@ export const useFeePlans = (studentId = null) => {
       setInstallments([]);
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to remove Fee Plan.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to remove Fee Plan.');
       throw err;
     } finally {
       setLoading(false);
@@ -96,7 +96,7 @@ export const useFeePlans = (studentId = null) => {
       }
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update installment.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to update installment.');
       throw err;
     } finally {
       setLoading(false);
@@ -113,7 +113,7 @@ export const useFeePlans = (studentId = null) => {
       }
       return res;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete installment.');
+      setError(err.userMessage || err.response?.data?.message || 'Failed to delete installment.');
       throw err;
     } finally {
       setLoading(false);

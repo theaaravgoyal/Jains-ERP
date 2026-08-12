@@ -8,20 +8,46 @@ export default function OfflineLeadsTab({ leads = [], refreshLeads }) {
   const [nestedTab, setNestedTab] = useState('new-lead'); // 'new-lead' | 'saved-leads'
   const [editingLead, setEditingLead] = useState(null);
 
-  // Filter out online leads (which have source = "popup")
-  const offlineLeads = Array.isArray(leads) 
-    ? leads.filter(l => l.source !== 'popup') 
-    : [];
+  const OFFLINE_SOURCES = [
+    'walk-in', 'phone call', 'whatsapp', 'newspaper ad', 'pamphlet / flyer',
+    'banner / hoarding', 'friend / referral', 'school / college visit',
+    'exhibition / event', 'social media (organic)', 'other'
+  ];
+
+  const ONLINE_SOURCES = ['popup', 'course-page', 'website', 'facebook', 'instagram', 'google search'];
+
+  const isOfflineLead = (l) => {
+    if (!l) return false;
+    const src = (l.source || '').toLowerCase();
+    if (OFFLINE_SOURCES.includes(src)) return true;
+    if (l.counsellor && l.counsellor !== 'undefined') return true;
+    return !ONLINE_SOURCES.includes(src);
+  };
+
+  const offlineLeads = Array.isArray(leads) ? leads.filter(isOfflineLead) : [];
+
+  const getCounsellor = (l) => {
+    if (l.counsellor && l.counsellor !== 'undefined' && l.counsellor !== 'Unassigned') {
+      return l.counsellor;
+    }
+    if (l.message && l.message.includes('Counsellor:')) {
+      return l.message.replace('Counsellor:', '').trim();
+    }
+    return 'Khushi Soni';
+  };
 
   const handleLeadSubmit = async (leadData) => {
     if (!leadData) return; // cancelled
     try {
+      const assignedCounsellor = leadData.counsellor || 'Khushi Soni';
       const payload = {
         name: leadData.name,
         phone: leadData.contact,
         source: leadData.reference,
         course: leadData.course,
-        counsellor: leadData.counsellor,
+        status: editingLead?.status || 'pending',
+        counsellor: assignedCounsellor,
+        message: `Counsellor: ${assignedCounsellor}`,
         date: leadData.date
       };
 
@@ -48,6 +74,7 @@ export default function OfflineLeadsTab({ leads = [], refreshLeads }) {
       id: lead._id || lead.id,
       contact: lead.phone,
       reference: lead.source,
+      counsellor: getCounsellor(lead),
       // Normalize date to YYYY-MM-DD
       date: lead.date ? new Date(lead.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)
     });
@@ -145,7 +172,7 @@ export default function OfflineLeadsTab({ leads = [], refreshLeads }) {
                   <span className="text-xs font-semibold text-slate-600">{lead.phone}</span>
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{lead.source}</span>
                   <span className="text-xs font-semibold text-slate-700 truncate">{lead.course}</span>
-                  <span className="text-xs font-semibold text-slate-600">{lead.counsellor || '—'}</span>
+                  <span className="text-xs font-semibold text-slate-600">{getCounsellor(lead)}</span>
                   <span className="text-[10px] font-bold text-slate-500">
                     {formatDate(lead.date || lead.createdAt)}
                   </span>

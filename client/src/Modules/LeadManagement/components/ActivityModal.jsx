@@ -3,7 +3,6 @@ import { X, Loader2 } from 'lucide-react';
 import DatePicker from '../../FeesManagement/components/DatePicker';
 
 const STAFF_MEMBERS = [
-  "Neha",
   "Khushi Soni",
 ];
 

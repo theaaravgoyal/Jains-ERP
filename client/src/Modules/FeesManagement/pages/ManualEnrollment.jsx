@@ -24,7 +24,7 @@ const ManualEnrollment = ({ onNavigate }) => {
     dob: '',
     course: COURSES[0],
     rollNo: '',
-    section: 'A',
+    section: '',
     admissionDate: new Date().toISOString().split('T')[0],
     totalFee: '',
     discount: '',
@@ -73,7 +73,13 @@ const ManualEnrollment = ({ onNavigate }) => {
       const amtPerInstallment = Math.round(totalPayable / count);
       const baseDate = new Date(formData.admissionDate);
       for (let i = 0; i < count; i++) {
-        const dueDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + (i * 3), baseDate.getDate());
+        // Every month 1 installment (1-month gap instead of quarterly)
+        const dueDate = new Date(baseDate);
+        const targetDay = dueDate.getDate();
+        dueDate.setDate(1);
+        dueDate.setMonth(dueDate.getMonth() + i);
+        const daysInMonth = new Date(dueDate.getFullYear(), dueDate.getMonth() + 1, 0).getDate();
+        dueDate.setDate(Math.min(targetDay, daysInMonth));
         
         // Handle rounding difference on final installment
         const isLast = i === count - 1;
@@ -326,16 +332,14 @@ const ManualEnrollment = ({ onNavigate }) => {
 
               <div className="space-y-1">
                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Assigned Class Section</label>
-                <select 
+                <input 
+                  type="text" 
                   name="section" 
                   value={formData.section} 
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-[#DEDCD8] bg-white rounded-xl font-bold cursor-pointer outline-none focus:border-amber-400"
-                >
-                  <option value="A">Section A</option>
-                  <option value="B">Section B</option>
-                  <option value="C">Section C</option>
-                </select>
+                  placeholder="e.g. Section A / Batch 1"
+                  className="w-full px-3 py-2 border border-[#DEDCD8] rounded-xl font-semibold outline-none focus:border-amber-400"
+                />
               </div>
             </div>
           </div>

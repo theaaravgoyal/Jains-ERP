@@ -22,8 +22,12 @@ const Navbar = () => {
     navigate(ROUTES.LOGIN);
   };
 
-  const fetchNotifications = async () => {
-    setLoadingNotifications(true);
+  const isFetchingNotifRef = useRef(false);
+
+  const fetchNotifications = async (silent = false) => {
+    if (isFetchingNotifRef.current && silent) return;
+    isFetchingNotifRef.current = true;
+    if (!silent) setLoadingNotifications(true);
     try {
       const [listRes, countRes] = await Promise.all([
         feesApi.getNotifications({ limit: 10 }),
@@ -37,16 +41,17 @@ const Navbar = () => {
         setUnreadCount(countRes.data.count || 0);
       }
     } catch (err) {
-      console.error('Failed to fetch notifications center alerts:', err);
+      if (!silent) console.error('Failed to fetch notifications center alerts:', err);
     } finally {
-      setLoadingNotifications(false);
+      if (!silent) setLoadingNotifications(false);
+      isFetchingNotifRef.current = false;
     }
   };
 
   const handleMarkAllRead = async () => {
     try {
       await feesApi.markAllNotificationsRead();
-      fetchNotifications();
+      fetchNotifications(true);
     } catch (err) {
       console.error('Failed to mark all notifications read:', err);
     }
@@ -58,7 +63,7 @@ const Navbar = () => {
         await feesApi.markNotificationRead(n._id);
       }
       setShowNotifications(false);
-      fetchNotifications();
+      fetchNotifications(true);
       
       if (n.actionUrl) {
         navigate(n.actionUrl);
@@ -70,17 +75,25 @@ const Navbar = () => {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll notifications every 10 seconds for real-time live feel
-    const interval = setInterval(fetchNotifications, 10000);
+    // Poll notifications every 20 seconds only when tab is active
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchNotifications(true);
+      }
+    }, 20000);
 
-    const onFocus = () => fetchNotifications();
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onFocus);
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchNotifications(true);
+      }
+    };
+    window.addEventListener('focus', onVisibilityChange);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onVisibilityChange);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 

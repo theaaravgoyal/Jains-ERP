@@ -63,7 +63,7 @@ export const useReports = () => {
       }
     } catch (err) {
       console.error('Error fetching student ledger:', err);
-      setError('Failed to fetch selected student ledger details.');
+      setError(err.userMessage || 'Failed to fetch selected student ledger details.');
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ export const useReports = () => {
       }
     } catch (err) {
       console.error('Error loading report rows:', err);
-      setError('Server error compiled during report rendering.');
+      setError(err.userMessage || 'Server error compiled during report rendering.');
     } finally {
       setLoading(false);
     }

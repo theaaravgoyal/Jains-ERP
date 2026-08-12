@@ -993,7 +993,7 @@ export default function EmployeeDashboard() {
                   <div className="bg-emerald-50 border border-emerald-100 p-2.5 rounded-xl text-[11px] font-bold text-emerald-800 flex items-center justify-between">
                     <span>Monthly Paid Leave Balance:</span>
                     <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-200 text-emerald-700">
-                      {leaveQuotaInfo.paidLeavesRemaining} of {leaveQuotaInfo.monthlyQuota} Paid Days Remaining
+                      {leaveQuotaInfo?.paidLeavesRemaining ?? 2} of {leaveQuotaInfo?.monthlyQuota ?? 2} Paid Days Remaining
                     </span>
                   </div>
 
@@ -1087,21 +1087,21 @@ export default function EmployeeDashboard() {
                         Monthly Leave Policy
                       </span>
                       <span className="text-[10px] font-extrabold bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-xs">
-                        {leaveQuotaInfo.monthlyQuota} Paid / Month
+                        {leaveQuotaInfo?.monthlyQuota ?? 2} Paid / Month
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-white/20">
                       <div className="bg-white/10 p-2 rounded-xl">
                         <span className="text-[8px] font-extrabold uppercase text-emerald-100 block">Available</span>
-                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo.paidLeavesRemaining}</strong>
+                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo?.paidLeavesRemaining ?? 2}</strong>
                       </div>
                       <div className="bg-white/10 p-2 rounded-xl">
                         <span className="text-[8px] font-extrabold uppercase text-emerald-100 block">Paid Used</span>
-                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo.paidLeavesUsedThisMonth}</strong>
+                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo?.paidLeavesUsedThisMonth ?? 0}</strong>
                       </div>
                       <div className="bg-white/10 p-2 rounded-xl">
                         <span className="text-[8px] font-extrabold uppercase text-emerald-100 block">Unpaid / LOP</span>
-                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo.unpaidLeavesThisMonth}</strong>
+                        <strong className="text-base font-black leading-tight block">{leaveQuotaInfo?.unpaidLeavesThisMonth ?? 0}</strong>
                       </div>
                     </div>
                   </div>
@@ -1116,14 +1116,14 @@ export default function EmployeeDashboard() {
                       <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-brand-red animate-spin mx-auto" />
                       <p className="text-[8px] font-black uppercase tracking-wider">Fetching applications...</p>
                     </div>
-                  ) : leavesList.length === 0 ? (
+                  ) : (!leavesList || leavesList.length === 0) ? (
                     <div className="py-10 text-center bg-[#FAF9F6] border border-[#EBEAE6] rounded-2xl text-slate-400 space-y-1">
                       <p className="text-xs font-bold">No leave requests found.</p>
                       <p className="text-[9px] text-slate-350">Tap "Apply Leave" above to submit a new request.</p>
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 pb-4">
-                      {leavesList.map((item) => (
+                      {(leavesList || []).map((item) => (
                         <div 
                           key={item._id}
                           className="bg-white border border-[#EBEAE6] p-3 rounded-2xl shadow-xs space-y-2.5 hover:border-slate-300 transition-colors"

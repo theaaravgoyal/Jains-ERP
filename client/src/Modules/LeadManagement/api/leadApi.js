@@ -1,12 +1,11 @@
 import axios from 'axios';
+import { API_CONFIG } from '../../../config/api';
 
-// Dedicated axios instance for Lead Management pointing to https://api.jainscomputer.com/api
+// Dedicated axios instance for Lead Management
 const leadAxios = axios.create({
-  baseURL: 'https://api.jainscomputer.com/api',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
+  headers: API_CONFIG.HEADERS
 });
 
 // Attach auth token if available

@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://erp-portal-production-0cc1.up.railway.app',
+        target: 'https://cms.jainscomputer.com',
         changeOrigin: true,
         secure: false,
       }

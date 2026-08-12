@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   ArrowLeft, User, Phone, Mail, BookOpen, 
-  Sparkles, Check, RefreshCw
+  Sparkles, Check, RefreshCw, Search
 } from 'lucide-react';
 import { COURSES } from '../../../constants/Courses';
 import { formatDate } from '../../../utils/dateUtils';
@@ -15,6 +15,9 @@ const ManualEnrollment = ({ onNavigate }) => {
   const { registerStudent } = useStudents();
   const { createFeePlan } = useFeePlans();
 
+  const [selectedCourses, setSelectedCourses] = useState(['Digital Marketing']);
+  const [courseFilter, setCourseFilter] = useState('');
+
   // Form State
   const [formData, setFormData] = useState({
     name: '',
@@ -22,7 +25,7 @@ const ManualEnrollment = ({ onNavigate }) => {
     phone: '',
     fatherName: '',
     dob: '',
-    course: COURSES[0],
+    course: 'Digital Marketing',
     rollNo: '',
     section: '',
     admissionDate: new Date().toISOString().split('T')[0],
@@ -31,6 +34,37 @@ const ManualEnrollment = ({ onNavigate }) => {
     paymentType: 'Installments',
     installmentCount: 3
   });
+
+  const filteredCourses = useMemo(() => {
+    const q = courseFilter.toLowerCase().trim();
+    if (!q) return COURSES;
+    return COURSES.filter(c => c.toLowerCase().includes(q));
+  }, [courseFilter]);
+
+  const toggleCourse = (course) => {
+    setSelectedCourses(prev => {
+      let updated;
+      if (prev.includes(course)) {
+        if (prev.length === 1) {
+          // Keep at least one or toggle off
+          updated = [];
+        } else {
+          updated = prev.filter(c => c !== course);
+        }
+      } else {
+        updated = [...prev, course];
+      }
+      setFormData(f => ({ ...f, course: updated.join(', ') }));
+      if (validationErrors.course) {
+        setValidationErrors(v => {
+          const next = { ...v };
+          delete next.course;
+          return next;
+        });
+      }
+      return updated;
+    });
+  };
 
   const [formSuccess, setFormSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -117,6 +151,10 @@ const ManualEnrollment = ({ onNavigate }) => {
     const phoneRegex = /^\d{10}$/;
     if (formData.phone.trim() && !phoneRegex.test(formData.phone.trim())) {
       errors.phone = 'Mobile number must be exactly 10 digits';
+    }
+
+    if (!selectedCourses || selectedCourses.length === 0) {
+      errors.course = 'Please select at least one course';
     }
 
     setValidationErrors(errors);
@@ -300,24 +338,62 @@ const ManualEnrollment = ({ onNavigate }) => {
 
           {/* Section 2: Academic Program Information */}
           <div className="bg-white border border-[#EBEAE6] rounded-2xl p-5 shadow-sm space-y-4">
-            <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider pb-2 border-b border-[#FAF9F6] flex items-center gap-1.5">
-              <BookOpen size={14} className="text-blue-500" />
-              <span>Program Setup & Class</span>
-            </h4>
+            <div className="flex items-center justify-between pb-2 border-b border-[#FAF9F6]">
+              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <BookOpen size={14} className="text-[#E31C1C]" />
+                <span>Program Setup & Predefined Course Selection</span>
+              </h4>
+              {selectedCourses.length > 0 && (
+                <span className="text-[10px] bg-rose-50 text-[#E31C1C] px-2.5 py-0.5 rounded-full font-black border border-rose-200">
+                  {selectedCourses.length} Selected
+                </span>
+              )}
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="block text-[10px] uppercase text-slate-400 font-bold">Course Division *</label>
-                <select 
-                  name="course" 
-                  value={formData.course} 
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-[#DEDCD8] bg-white rounded-xl font-bold cursor-pointer outline-none focus:border-amber-400"
-                >
-                  {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+            {/* Course Search Filter Input */}
+            <div className="space-y-1">
+              <label className="block text-[10px] uppercase text-slate-400 font-bold">Select Institute Courses *</label>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  className="w-full pl-9 pr-4 py-2 border border-[#DEDCD8] bg-white rounded-xl text-xs font-semibold text-slate-700 outline-none focus:border-[#E31C1C] focus:ring-1 focus:ring-rose-200 transition-all placeholder:text-slate-400"
+                  placeholder="Type to filter predefined institute courses..."
+                  value={courseFilter}
+                  onChange={e => setCourseFilter(e.target.value)}
+                />
               </div>
+            </div>
 
+            {/* Interactive Course Pill Checkboxes */}
+            <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto p-2.5 border border-[#EBEAE6] rounded-xl bg-[#FAF9F6]/50">
+              {filteredCourses.map(c => {
+                const isSelected = selectedCourses.includes(c);
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => toggleCourse(c)}
+                    className={`text-xs font-bold px-3.5 py-1.5 rounded-full border transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-rose-50 text-[#E31C1C] border-[#E31C1C] font-extrabold ring-1 ring-[#E31C1C]/20 shadow-xs'
+                        : 'bg-white text-slate-650 border-[#DEDCD8] hover:border-slate-400 hover:text-slate-850'
+                    }`}
+                  >
+                    <span>{c}</span>
+                  </button>
+                );
+              })}
+              {filteredCourses.length === 0 && (
+                <p className="text-xs text-slate-400 font-semibold p-2">No courses match "{courseFilter}"</p>
+              )}
+            </div>
+            {validationErrors.course && (
+              <span className="text-[9px] text-rose-500 font-medium block">{validationErrors.course}</span>
+            )}
+
+            {/* Roll No and Class Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#FAF9F6]">
               <div className="space-y-1">
                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Roll / Reg No</label>
                 <input 

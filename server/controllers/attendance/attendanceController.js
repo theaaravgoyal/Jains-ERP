@@ -1,6 +1,8 @@
 const Employee = require('../../models/Employee');
 const Attendance = require('../../models/Attendance');
 const Settings = require('../../models/Settings');
+const Leave = require('../../models/Leave');
+const Holiday = require('../../models/Holiday');
 
 const getIstTodayBoundaries = (dateInput = new Date()) => {
   const d = new Date(dateInput);
@@ -9,7 +11,7 @@ const getIstTodayBoundaries = (dateInput = new Date()) => {
   startOfDayIst.setUTCHours(0, 0, 0, 0);
   const start = new Date(startOfDayIst.getTime() - (5.5 * 60 * 60 * 1000));
   const end = new Date(start.getTime() + (24 * 60 * 60 * 1000) - 1);
-  return { start, end };
+  return { start, end, istDayOfWeek: istTime.getUTCDay() };
 };
 
 // @desc    Get today's check-in/out status
@@ -17,14 +19,33 @@ const getIstTodayBoundaries = (dateInput = new Date()) => {
 // @access  Private (Employee)
 exports.getTodayAttendance = async (req, res, next) => {
   try {
-    const { start: todayStart, end: todayEnd } = getIstTodayBoundaries();
+    const { start: todayStart, end: todayEnd, istDayOfWeek } = getIstTodayBoundaries();
 
     const attendance = await Attendance.findOne({
       employee: req.employee._id,
       date: { $gte: todayStart, $lte: todayEnd }
     });
 
-    // Fetch last 10 days of attendance history for dashboard display
+    // Check if today is Sunday (Weekly Off)
+    const isSunday = istDayOfWeek === 0;
+
+    // Check if employee has an approved leave today
+    const activeLeave = await Leave.findOne({
+      employee: req.employee._id,
+      status: 'Approved',
+      startDate: { $lte: todayEnd },
+      endDate: { $gte: todayStart }
+    });
+
+    const isOnLeave = !!activeLeave || (attendance && ['Paid Leave', 'Unpaid Leave', 'Leave'].includes(attendance.status));
+
+    // Check if today is a declared holiday
+    const holiday = await Holiday.findOne({
+      date: { $gte: todayStart, $lte: todayEnd }
+    });
+    const isHoliday = !!holiday || (attendance && attendance.status === 'Holiday');
+
+    // Fetch attendance history for dashboard display
     const history = await Attendance.find({
       employee: req.employee._id
     })
@@ -43,6 +64,16 @@ exports.getTodayAttendance = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       todayRecord: attendance,
+      isSunday,
+      isOnLeave,
+      isHoliday,
+      holidayName: holiday?.reason || (attendance?.status === 'Holiday' ? attendance?.remarks : ''),
+      leaveDetails: activeLeave ? {
+        leaveType: activeLeave.leaveType,
+        reason: activeLeave.reason,
+        status: activeLeave.status,
+        isPaid: attendance?.status === 'Paid Leave'
+      } : null,
       history,
       settings: attendanceSettings
     });
@@ -58,15 +89,60 @@ exports.checkInEmployee = async (req, res, next) => {
   try {
     const { remarks } = req.body;
 
-    const { start: todayStart, end: todayEnd } = getIstTodayBoundaries();
+    const { start: todayStart, end: todayEnd, istDayOfWeek } = getIstTodayBoundaries();
 
-    // Check if check-in already exists
+    // 1. Sunday Check
+    if (istDayOfWeek === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Attendance check-in is not allowed on Sundays (Weekly Off).'
+      });
+    }
+
+    // 2. Declared Holiday Check
+    const holiday = await Holiday.findOne({
+      date: { $gte: todayStart, $lte: todayEnd }
+    });
+    if (holiday) {
+      return res.status(400).json({
+        success: false,
+        message: `Today is an official holiday (${holiday.reason}). Attendance check-in is closed.`
+      });
+    }
+
+    // 3. Approved Leave Check
+    const activeLeave = await Leave.findOne({
+      employee: req.employee._id,
+      status: 'Approved',
+      startDate: { $lte: todayEnd },
+      endDate: { $gte: todayStart }
+    });
+    if (activeLeave) {
+      return res.status(400).json({
+        success: false,
+        message: `You are on approved ${activeLeave.leaveType} leave today. Attendance check-in is disabled.`
+      });
+    }
+
+    // Check if check-in already exists or existing record has leave/holiday status
     const existing = await Attendance.findOne({
       employee: req.employee._id,
       date: { $gte: todayStart, $lte: todayEnd }
     });
 
     if (existing) {
+      if (['Paid Leave', 'Unpaid Leave', 'Leave'].includes(existing.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'You are on approved leave today. Attendance check-in is disabled.'
+        });
+      }
+      if (existing.status === 'Holiday') {
+        return res.status(400).json({
+          success: false,
+          message: 'Today is marked as a Holiday. Attendance check-in is disabled.'
+        });
+      }
       return res.status(400).json({ success: false, message: 'You have already checked in today.' });
     }
 

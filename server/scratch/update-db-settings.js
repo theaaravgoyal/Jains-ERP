@@ -28,7 +28,7 @@ async function run() {
           'institute.website': 'www.jainscomputer.com'
         }
       },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     console.log('Successfully updated DB global settings with new contact information:', updatedSettings.institute);

@@ -15,7 +15,11 @@ import {
   LogIn,
   ChevronLeft,
   Plus,
-  FileText
+  FileText,
+  Coffee,
+  Sparkles,
+  CalendarOff,
+  ShieldAlert
 } from 'lucide-react';
 import { useEmployeeAuth } from '../../context/EmployeeAuthContext';
 import { employeeApi } from '../../api/employeeApi';
@@ -35,6 +39,13 @@ export default function EmployeeDashboard() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Attendance Day Restrictions States
+  const [isSunday, setIsSunday] = useState(false);
+  const [isOnLeave, setIsOnLeave] = useState(false);
+  const [isHoliday, setIsHoliday] = useState(false);
+  const [holidayName, setHolidayName] = useState('');
+  const [leaveDetails, setLeaveDetails] = useState(null);
   
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState('Home'); // Home, Calendar, Modules, Profile, Leaves
@@ -100,6 +111,17 @@ export default function EmployeeDashboard() {
       if (res.success) {
         setTodayRecord(res.todayRecord);
         setHistory(res.history || []);
+        
+        const sundayStatus = !!res.isSunday || currentTime.getDay() === 0;
+        const onLeaveStatus = !!res.isOnLeave || ['Paid Leave', 'Unpaid Leave', 'Leave'].includes(res.todayRecord?.status);
+        const holidayStatus = !!res.isHoliday || res.todayRecord?.status === 'Holiday';
+
+        setIsSunday(sundayStatus);
+        setIsOnLeave(onLeaveStatus);
+        setIsHoliday(holidayStatus);
+        setHolidayName(res.holidayName || '');
+        setLeaveDetails(res.leaveDetails || null);
+
         if (res.settings) {
           setShiftSettings(res.settings);
         }
@@ -193,6 +215,20 @@ export default function EmployeeDashboard() {
   const handleCheckIn = async () => {
     setError('');
     setSuccessMsg('');
+
+    if (isOnLeave) {
+      setError('You are on approved leave today. Attendance check-in is disabled.');
+      return;
+    }
+    if (isSunday) {
+      setError('Attendance check-in is disabled on Sundays (Weekly Off).');
+      return;
+    }
+    if (isHoliday) {
+      setError(`Today is an official holiday (${holidayName || 'Holiday'}). Office is closed.`);
+      return;
+    }
+
     setBtnLoading(true);
     try {
       const res = await employeeApi.checkIn(remarks);
@@ -211,6 +247,12 @@ export default function EmployeeDashboard() {
   const handleCheckOut = async () => {
     setError('');
     setSuccessMsg('');
+
+    if (isOnLeave || isSunday) {
+      setError('Attendance action is disabled today.');
+      return;
+    }
+
     setBtnLoading(true);
     try {
       const res = await employeeApi.checkOut();
@@ -526,7 +568,7 @@ export default function EmployeeDashboard() {
 
           {/* TAB 1: HOME ATTENDANCE VIEW */}
           {activeTab === 'Home' && (
-            <div className="space-y-3.5 sm:space-y-6">
+            <div className="space-y-3.5 sm:space-y-5">
               
               {/* Realtime Clock Header */}
               <div className="text-center space-y-0.5 sm:space-y-1 mt-1 sm:mt-2">
@@ -538,6 +580,49 @@ export default function EmployeeDashboard() {
                 </span>
               </div>
 
+              {/* Status Notice Banners for On-Leave, Sunday, or Holiday */}
+              {isOnLeave && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 shadow-xs animate-fade-in">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                    <CalendarOff size={18} />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">On Approved Leave Today</h4>
+                    <p className="text-[11px] font-semibold text-amber-800 mt-0.5 leading-tight">
+                      {leaveDetails?.leaveType ? `${leaveDetails.leaveType} Leave` : (todayRecord?.status || 'Leave')} &bull; Attendance check-in is disabled.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {isSunday && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-900 p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 shadow-xs animate-fade-in">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                    <Coffee size={18} />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-blue-900">Sunday — Weekly Off</h4>
+                    <p className="text-[11px] font-semibold text-blue-800 mt-0.5 leading-tight">
+                      Enjoy your weekend! Attendance check-in is not required.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {isHoliday && !isSunday && !isOnLeave && (
+                <div className="bg-purple-50 border border-purple-200 text-purple-900 p-3 sm:p-3.5 rounded-2xl flex items-center gap-3 shadow-xs animate-fade-in">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                    <Sparkles size={18} />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-purple-900">Declared Holiday</h4>
+                    <p className="text-[11px] font-semibold text-purple-800 mt-0.5 leading-tight">
+                      {holidayName || 'Office Holiday'} &bull; Attendance check-in is closed.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Big Circle Punch Button */}
               {loading ? (
                 <div className="py-6 flex flex-col items-center justify-center gap-3">
@@ -546,11 +631,32 @@ export default function EmployeeDashboard() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
-                  {!todayRecord ? (
+                  {isOnLeave ? (
+                    /* On Leave - Amber Disabled Circle */
+                    <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-amber-50 border-4 border-amber-300 text-amber-800 flex flex-col items-center justify-center gap-1 sm:gap-1.5 shadow-xs shrink-0 select-none cursor-not-allowed">
+                      <CalendarOff className="w-7 h-7 sm:w-9 sm:h-9 text-amber-600" />
+                      <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider">On Leave</span>
+                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-widest">(Disabled)</span>
+                    </div>
+                  ) : isSunday ? (
+                    /* Sunday - Blue Disabled Circle */
+                    <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-blue-50 border-4 border-blue-200 text-blue-800 flex flex-col items-center justify-center gap-1 sm:gap-1.5 shadow-xs shrink-0 select-none cursor-not-allowed">
+                      <Coffee className="w-7 h-7 sm:w-9 sm:h-9 text-blue-500" />
+                      <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider">Weekly Off</span>
+                      <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">(Sunday)</span>
+                    </div>
+                  ) : isHoliday ? (
+                    /* Holiday - Purple Disabled Circle */
+                    <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-purple-50 border-4 border-purple-200 text-purple-800 flex flex-col items-center justify-center gap-1 sm:gap-1.5 shadow-xs shrink-0 select-none cursor-not-allowed">
+                      <Sparkles className="w-7 h-7 sm:w-9 sm:h-9 text-purple-600" />
+                      <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider">Holiday</span>
+                      <span className="text-[9px] font-bold text-purple-500 uppercase tracking-widest">(Closed)</span>
+                    </div>
+                  ) : !todayRecord ? (
                     /* Day In - Solid Green */
                     <button
                       onClick={handleMainPunchClick}
-                      disabled={btnLoading}
+                      disabled={btnLoading || isOnLeave || isSunday || isHoliday}
                       className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-[#10B981] hover:bg-emerald-600 text-white flex flex-col items-center justify-center gap-1.5 sm:gap-2 cursor-pointer transition-all active:scale-95 shadow-lg border-0 shrink-0"
                     >
                       <Fingerprint className="text-white/95 animate-pulse w-7 h-7 sm:w-10 sm:h-10" />
@@ -560,7 +666,7 @@ export default function EmployeeDashboard() {
                     /* Day Out - Pink Circle with Red Border Ring */
                     <button
                       onClick={handleMainPunchClick}
-                      disabled={btnLoading}
+                      disabled={btnLoading || isOnLeave || isSunday || isHoliday}
                       className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-rose-50 border-4 border-rose-500 text-brand-red flex flex-col items-center justify-center gap-1.5 sm:gap-2 cursor-pointer transition-all active:scale-95 shadow-md shrink-0"
                     >
                       <Fingerprint className="text-brand-red animate-pulse w-7 h-7 sm:w-10 sm:h-10" />
@@ -607,9 +713,9 @@ export default function EmployeeDashboard() {
                 {/* 3. Punch In Action Card */}
                 <button
                   onClick={handleCheckIn}
-                  disabled={btnLoading || !!todayRecord}
+                  disabled={btnLoading || !!todayRecord || isOnLeave || isSunday || isHoliday}
                   className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl flex items-center justify-between h-20 sm:h-24 shadow-xs border-0 text-left cursor-pointer transition-all active:scale-95 ${
-                    !todayRecord 
+                    (!todayRecord && !isOnLeave && !isSunday && !isHoliday) 
                       ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700' 
                       : 'bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed'
                   }`}
@@ -624,9 +730,9 @@ export default function EmployeeDashboard() {
                 {/* 4. Punch Out Action Card */}
                 <button
                   onClick={handleCheckOut}
-                  disabled={btnLoading || !todayRecord || !!todayRecord?.checkOut}
+                  disabled={btnLoading || !todayRecord || !!todayRecord?.checkOut || isOnLeave || isSunday || isHoliday}
                   className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl flex items-center justify-between h-20 sm:h-24 shadow-xs border-0 text-left cursor-pointer transition-all active:scale-95 ${
-                    (todayRecord && !todayRecord.checkOut) 
+                    (todayRecord && !todayRecord.checkOut && !isOnLeave && !isSunday && !isHoliday) 
                       ? 'bg-rose-50 hover:bg-rose-100 text-rose-700' 
                       : 'bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed'
                   }`}

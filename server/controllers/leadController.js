@@ -150,7 +150,7 @@ const updateLead = async (req, res) => {
     const updated = await Lead.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updated) {

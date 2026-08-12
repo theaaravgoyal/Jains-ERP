@@ -41,7 +41,7 @@ class FeePlanRepository {
     return await FeePlan.findOneAndUpdate(
       { studentId, deletedAt: null },
       updateData,
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).populate('student');
   }
 
@@ -58,7 +58,7 @@ class FeePlanRepository {
         deletedAt: new Date(),
         deletedBy: userId
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('student');
   }
 

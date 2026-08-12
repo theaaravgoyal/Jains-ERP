@@ -173,7 +173,7 @@ StudentSchema.pre('save', async function () {
       const counter = await Counter.findOneAndUpdate(
         { key: 'student_counter' },
         { $inc: { value: 1 } },
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
       );
       const countStr = String(counter.value).padStart(4, '0');
       generatedId = `STD${countStr}`;

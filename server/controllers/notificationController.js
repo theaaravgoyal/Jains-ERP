@@ -109,7 +109,7 @@ const markRead = async (req, res) => {
     const notification = await Notification.findOneAndUpdate(
       { _id: id, targetUser: userId },
       { isRead: true, readAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!notification) {

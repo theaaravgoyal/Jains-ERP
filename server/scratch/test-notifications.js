@@ -101,7 +101,7 @@ const runNotificationTests = async () => {
     const readN1 = await Notification.findOneAndUpdate(
       { _id: n1._id, targetUser: mockUser._id },
       { isRead: true, readAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
     console.log('Updated Status isRead:', readN1.isRead, 'readAt:', readN1.readAt);
     if (!readN1.isRead || !readN1.readAt) {

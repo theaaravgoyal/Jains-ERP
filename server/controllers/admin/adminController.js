@@ -258,6 +258,7 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
     // Calculate dates in UTC/Local correctly for range
     const startDate = new Date(yr, mn - 1, 1);
     const endDate = new Date(yr, mn, 0, 23, 59, 59, 999);
+    const daysInMonth = new Date(yr, mn, 0).getDate();
 
     const employee = await Employee.findById(employeeId);
     if (!employee) {
@@ -268,6 +269,19 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
       employee: employeeId,
       date: { $gte: startDate, $lte: endDate }
     }).sort({ date: 1 });
+
+    const Holiday = require('../../models/Holiday');
+    const holidays = await Holiday.find({
+      date: { $gte: startDate, $lte: endDate }
+    });
+
+    const Leave = require('../../models/Leave');
+    const approvedLeaves = await Leave.find({
+      employee: employeeId,
+      status: 'Approved',
+      startDate: { $lte: endDate },
+      endDate: { $gte: startDate }
+    });
 
     const joiningDate = employee.dateOfJoining || employee.createdAt || new Date();
     const joiningDayStart = new Date(joiningDate);
@@ -295,6 +309,8 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
     let absentCount = 0;
     let weekendCount = 0;
 
+    const report = [];
+
     for (let day = 1; day <= daysInMonth; day++) {
       const currentDate = new Date(yr, mn - 1, day);
       currentDate.setHours(12, 0, 0, 0);
@@ -310,9 +326,34 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
       const dayOfWeek = currentDate.getDay();
       const isWeekend = dayOfWeek === 0; // Only Sunday is counted as Weekend / Weekly Off
 
+      // Check if this date has a declared holiday
+      const matchedHoliday = holidays.find(h => {
+        const hd = new Date(h.date);
+        return hd.getFullYear() === currentDate.getFullYear() &&
+               hd.getMonth() === currentDate.getMonth() &&
+               hd.getDate() === currentDate.getDate();
+      });
+
+      // Check if this date falls within any approved leave
+      const matchedLeave = approvedLeaves.find(l => {
+        const s = new Date(l.startDate);
+        s.setHours(0, 0, 0, 0);
+        const e = new Date(l.endDate);
+        e.setHours(23, 59, 59, 999);
+        return currentDate >= s && currentDate <= e;
+      });
+
       let status = '-';
+      let remarks = record ? (record.remarks || '-') : '-';
+
       if (record) {
         status = record.status;
+      } else if (matchedHoliday) {
+        status = 'Holiday';
+        remarks = matchedHoliday.reason || 'Official Holiday';
+      } else if (matchedLeave) {
+        status = 'Paid Leave';
+        remarks = `${matchedLeave.leaveType} Leave (${matchedLeave.reason || 'Approved'})`;
       } else {
         const isFuture = currentDate > today;
         const isBeforeJoining = currentDate < joiningDayStart;
@@ -340,7 +381,7 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
         checkIn: record ? record.checkIn || '-' : '-',
         checkOut: record ? record.checkOut || '-' : '-',
         workingHours: record ? (record.workingHours || 0) : 0,
-        remarks: record ? record.remarks || '-' : '-'
+        remarks: remarks
       });
     }
 

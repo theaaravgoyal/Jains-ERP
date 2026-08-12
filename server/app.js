@@ -53,17 +53,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 const securityHeaders = require('./middleware/securityHeadersMiddleware');
-const { apiLimiter, authLimiter } = require('./middleware/rateLimitMiddleware');
 const nosqlSanitizer = require('./middleware/nosqlInjectionMiddleware');
 
 app.use(securityHeaders);
-app.use('/auth', authLimiter);
-app.use('/api/auth', authLimiter);
-app.use('/employee/login', authLimiter);
-app.use('/api/employee/login', authLimiter);
-app.use('/employee/register', authLimiter);
-app.use('/api/employee/register', authLimiter);
-app.use(apiLimiter); // General sliding-window rate limit (1500 req / 15m)
 app.use(nosqlSanitizer); // prevent nosql query injection attacks
 
 app.use(express.json({ limit: '10mb' }));

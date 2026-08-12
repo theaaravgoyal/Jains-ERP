@@ -85,7 +85,7 @@ class StudentRepository {
     return await Student.findOneAndUpdate(
       { _id: id, deletedAt: null },
       updateData,
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).populate('createdBy', 'name email')
      .populate('feePlan');
   }
@@ -103,7 +103,7 @@ class StudentRepository {
         deletedAt: new Date(),
         deletedBy: userId
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 

@@ -68,7 +68,7 @@ const seedDefaultAuthData = async () => {
       const p = await Permission.findOneAndUpdate(
         { code: pData.code },
         pData,
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
       );
       permissions[p.code] = p._id;
     }
@@ -89,7 +89,7 @@ const seedDefaultAuthData = async () => {
       const r = await Role.findOneAndUpdate(
         { name: rData.name },
         rData,
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
       );
       roles[r.name] = r._id;
     }

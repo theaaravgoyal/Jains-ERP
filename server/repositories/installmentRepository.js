@@ -49,7 +49,7 @@ class InstallmentRepository {
     return await Installment.findOneAndUpdate(
       { _id: id, deletedAt: null },
       updateData,
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
   }
 
@@ -65,7 +65,7 @@ class InstallmentRepository {
         deletedAt: new Date(),
         deletedBy: userId
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 

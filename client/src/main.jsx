@@ -9,21 +9,24 @@ import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import './index.css';
 import App from './App.jsx';
+import ErrorBoundary from './components/ErrorBoundary';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AuthProvider>
-      <EmployeeAuthProvider>
-        <PermissionProvider>
-          <ThemeProvider>
-            <NotificationProvider>
-              <BrowserRouter>
-                <App />
-              </BrowserRouter>
-            </NotificationProvider>
-          </ThemeProvider>
-        </PermissionProvider>
-      </EmployeeAuthProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <EmployeeAuthProvider>
+          <PermissionProvider>
+            <ThemeProvider>
+              <NotificationProvider>
+                <BrowserRouter>
+                  <App />
+                </BrowserRouter>
+              </NotificationProvider>
+            </ThemeProvider>
+          </PermissionProvider>
+        </EmployeeAuthProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

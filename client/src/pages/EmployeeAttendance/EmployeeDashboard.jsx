@@ -19,7 +19,8 @@ import {
   Coffee,
   Sparkles,
   CalendarOff,
-  ShieldAlert
+  ShieldAlert,
+  X
 } from 'lucide-react';
 import { useEmployeeAuth } from '../../context/EmployeeAuthContext';
 import { employeeApi } from '../../api/employeeApi';

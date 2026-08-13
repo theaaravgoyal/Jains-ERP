@@ -2,10 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Check, X, ShieldAlert, Sparkles, 
-  Calendar, Users, Clock, Search, Plus, User, AlertCircle, Edit2, FileSpreadsheet, Trash2, Eye
+  Calendar, Users, Clock, Search, Plus, User, AlertCircle, Edit2, FileSpreadsheet, Trash2, Eye,
+  Bell, CheckCheck, RefreshCw, MapPin
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminAttendanceApi } from '../../../api/adminAttendanceApi';
+import { feesApi } from '../../../api/feesApi';
 import Card from '../../../components/Card';
 import Button from '../../../components/Button';
 import { formatDate } from '../../../utils/dateUtils';
@@ -32,6 +34,13 @@ export default function Attendance() {
   // Right Sidebar Filter Tab: 'logged_in' (all present/late), 'on_time', 'late'
   const [sidebarTab, setSidebarTab] = useState('logged_in');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Attendance Notifications States
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const dropdownRef = useRef(null);
 
   // Add Profile Modal States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -129,27 +138,87 @@ export default function Attendance() {
     }
   };
 
+  const fetchAttendanceNotifications = async (silent = false) => {
+    try {
+      if (!silent) setLoadingNotifications(true);
+      const [listRes, countRes] = await Promise.all([
+        feesApi.getNotifications({ module: 'Attendance', limit: 10 }),
+        feesApi.getUnreadCount({ module: 'Attendance' })
+      ]);
+      
+      if (listRes.success) {
+        setNotifications(listRes.data.notifications || []);
+      }
+      if (countRes.success) {
+        setUnreadCount(countRes.data.count || 0);
+      }
+    } catch (err) {
+      if (!silent) console.error('Failed to fetch attendance notifications:', err);
+    } finally {
+      if (!silent) setLoadingNotifications(false);
+    }
+  };
+
+  const handleNotificationClick = async (n) => {
+    try {
+      if (!n.isRead) {
+        await feesApi.markNotificationRead(n._id);
+      }
+      setShowNotifications(false);
+      fetchAttendanceNotifications(true);
+      
+      // Auto-tab navigation based on notification type/message content
+      if (n.type === 'leave_request' || n.title.includes('Leave') || n.message.includes('leave')) {
+        setActiveTab('leaves');
+      } else if (n.title.includes('Approval') || n.title.includes('Registration') || n.message.includes('approve') || n.message.includes('register')) {
+        setActiveTab('pending');
+      }
+    } catch (err) {
+      console.error('Error on notification click:', err);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await feesApi.markAllNotificationsRead();
+      fetchAttendanceNotifications(true);
+    } catch (err) {
+      console.error('Failed to mark all notifications read:', err);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchAttendanceNotifications(true);
     // Auto-refresh in background every 15 seconds only when tab is active
     const interval = setInterval(() => {
       if (!document.hidden) {
         fetchData(true);
+        fetchAttendanceNotifications(true);
       }
     }, 15000);
 
     const onVisibilityChange = () => {
       if (!document.hidden) {
         fetchData(true);
+        fetchAttendanceNotifications(true);
       }
     };
     window.addEventListener('focus', onVisibilityChange);
     document.addEventListener('visibilitychange', onVisibilityChange);
 
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', onVisibilityChange);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -218,8 +287,16 @@ export default function Attendance() {
     e.preventDefault();
     setTimingError('');
     setTimingLoading(true);
+
+    const payload = {
+      ...timingFormData,
+      officeLatitude: timingFormData.officeLatitude !== '' && timingFormData.officeLatitude !== undefined && timingFormData.officeLatitude !== null ? Number(timingFormData.officeLatitude) : 26.9405,
+      officeLongitude: timingFormData.officeLongitude !== '' && timingFormData.officeLongitude !== undefined && timingFormData.officeLongitude !== null ? Number(timingFormData.officeLongitude) : 75.7145,
+      allowedRadius: timingFormData.allowedRadius !== '' && timingFormData.allowedRadius !== undefined && timingFormData.allowedRadius !== null ? Number(timingFormData.allowedRadius) : 100
+    };
+
     try {
-      const res = await adminAttendanceApi.updateAttendanceSettings(timingFormData);
+      const res = await adminAttendanceApi.updateAttendanceSettings(payload);
       if (res.success) {
         setAttendanceSettings(res.settings);
         setShowTimingModal(false);
@@ -694,6 +771,18 @@ export default function Attendance() {
     return timeStr;
   };
 
+  // Prevent body scroll when any modal is open
+  useEffect(() => {
+    if (showTimingModal || showAddModal || showEditModal || showEditLeaveModal || showHolidayModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showTimingModal, showAddModal, showEditModal, showEditLeaveModal, showHolidayModal]);
+
   return (
     <div className="space-y-8 animate-fade-in text-slate-800 font-sans pb-10">
       
@@ -722,6 +811,83 @@ export default function Attendance() {
 
         {/* Shift timing display */}
         <div className="flex items-center gap-3">
+          
+          {/* Attendance Notifications Bell */}
+          <div className="relative flex items-center justify-center mr-1" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="p-2.5 text-slate-500 hover:text-amber-500 hover:bg-slate-100 border border-slate-200 bg-white rounded-full transition-all cursor-pointer relative flex items-center justify-center outline-none shadow-sm"
+              title="Attendance Notifications"
+            >
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-extrabold text-[8px] leading-none min-w-[14px] text-center shadow-sm">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-3 top-10 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 space-y-2.5 max-h-[400px] overflow-y-auto z-50 flex flex-col">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-extrabold text-slate-800 uppercase tracking-wider">Attendance Alerts</span>
+                    {unreadCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 text-[8px] font-extrabold">{unreadCount} new</span>
+                    )}
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRead}
+                      className="text-[9px] font-bold text-emerald-600 hover:text-emerald-700 border-0 bg-transparent cursor-pointer flex items-center gap-0.5"
+                    >
+                      <CheckCheck size={10} />
+                      <span>Mark all read</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 flex-1 overflow-y-auto pr-0.5 min-h-[100px]">
+                  {loadingNotifications && notifications.length === 0 ? (
+                    <div className="flex justify-center items-center py-6">
+                      <RefreshCw size={16} className="animate-spin text-slate-400" />
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400">
+                      <p className="text-[9px] font-bold uppercase tracking-wider mb-0.5">Inbox Clear</p>
+                      <p className="text-[8px]">No attendance alerts.</p>
+                    </div>
+                  ) : (
+                    notifications.map(n => (
+                      <div
+                        key={n._id}
+                        onClick={() => handleNotificationClick(n)}
+                        className={`p-2.5 rounded-xl text-xs leading-snug border transition-all cursor-pointer select-none hover:bg-slate-50 ${
+                          n.isRead
+                            ? 'bg-white text-slate-500 border-slate-100'
+                            : 'bg-amber-50/10 text-slate-800 font-semibold border-amber-100/50 shadow-sm'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-0.5 text-[8px]">
+                          <span className="px-1.5 py-0.5 rounded font-extrabold uppercase text-blue-600 bg-blue-50">
+                            {n.module}
+                          </span>
+                          <span className="text-slate-400 font-medium">
+                            {new Date(n.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })}
+                          </span>
+                        </div>
+                        <h4 className="text-[10px] font-extrabold text-slate-800 leading-tight mb-0.5">{n.title}</h4>
+                        <p className="text-[9px] text-slate-500 font-medium leading-normal">{n.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div 
             onClick={() => {
               setTimingFormData({ ...attendanceSettings });
@@ -2232,7 +2398,7 @@ export default function Attendance() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSaveAttendanceSettings} className="p-6 space-y-4 overflow-y-auto">
+            <form onSubmit={handleSaveAttendanceSettings} className="p-6 space-y-4 overflow-y-auto flex-1">
               {timingError && (
                 <div className="bg-rose-50 border border-rose-100 text-brand-red text-xs font-bold p-3 rounded-xl flex items-center gap-2">
                   <AlertCircle size={14} className="shrink-0" />
@@ -2322,6 +2488,105 @@ export default function Attendance() {
                     Leaves approved up to this count in a calendar month are Paid (No salary deduction). Extra leaves become Unpaid / Loss of Pay.
                   </span>
                 </div>
+
+                {/* Geofencing Config */}
+                <div className="space-y-1 sm:col-span-2 pt-2.5 border-t border-[#EBEAE6]">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="geofencingEnabled"
+                      checked={timingFormData.geofencingEnabled || false}
+                      onChange={(e) => setTimingFormData({ ...timingFormData, geofencingEnabled: e.target.checked })}
+                      className="w-4 h-4 text-brand-red border-[#DEDCD8] rounded focus:ring-brand-red cursor-pointer accent-[#E31C1C]"
+                    />
+                    <label htmlFor="geofencingEnabled" className="text-xs font-extrabold text-slate-700 cursor-pointer select-none">
+                      Enable Location Geofencing
+                    </label>
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-semibold block">
+                    Force employees to punch in/out only when they are within the office boundary area.
+                  </span>
+                </div>
+
+                {timingFormData.geofencingEnabled && (
+                  <>
+                    <div className="sm:col-span-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!navigator.geolocation) {
+                            alert("Geolocation is not supported by your browser.");
+                            return;
+                          }
+                          navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                              setTimingFormData({
+                                ...timingFormData,
+                                officeLatitude: position.coords.latitude.toFixed(6),
+                                officeLongitude: position.coords.longitude.toFixed(6)
+                              });
+                            },
+                            (error) => {
+                              alert("Failed to fetch location: " + error.message);
+                            },
+                            { enableHighAccuracy: true }
+                          );
+                        }}
+                        className="py-1.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                      >
+                        <MapPin size={12} className="text-amber-500" />
+                        <span>Detect My Location</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                        Office Latitude
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={timingFormData.officeLatitude ?? ''}
+                        onChange={(e) => setTimingFormData({ ...timingFormData, officeLatitude: e.target.value })}
+                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                        placeholder="e.g. 26.9405"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                        Office Longitude
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={timingFormData.officeLongitude ?? ''}
+                        onChange={(e) => setTimingFormData({ ...timingFormData, officeLongitude: e.target.value })}
+                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                        placeholder="e.g. 75.7145"
+                      />
+                    </div>
+
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                        Allowed Radius (meters)
+                      </label>
+                      <input
+                        type="number"
+                        min="5"
+                        max="5000"
+                        required
+                        value={timingFormData.allowedRadius ?? ''}
+                        onChange={(e) => setTimingFormData({ ...timingFormData, allowedRadius: e.target.value })}
+                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                        placeholder="e.g. 100"
+                      />
+                      <span className="text-[9px] text-slate-400 font-semibold block">
+                        Allowed distance radius from the coordinates (in meters) to log attendance.
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Action Buttons */}

@@ -3,7 +3,7 @@ import { API_CONFIG } from '../../../config/api';
 
 // Dedicated axios instance for Lead Management
 const leadAxios = axios.create({
-  baseURL: API_CONFIG.BASE_URL,
+  baseURL: API_CONFIG.LEAD_BASE_URL,
   timeout: API_CONFIG.TIMEOUT,
   headers: API_CONFIG.HEADERS
 });

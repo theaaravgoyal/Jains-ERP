@@ -213,6 +213,34 @@ export default function EmployeeDashboard() {
     };
   }, [employeeToken, navigate]);
 
+  const getCoordinates = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        return reject(new Error('Geolocation is not supported by your browser.'));
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+        },
+        (error) => {
+          let msg = 'Failed to retrieve your location.';
+          if (error.code === error.PERMISSION_DENIED) {
+            msg = 'Location access permission was denied. Please allow location permissions to mark attendance.';
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            msg = 'Location information is unavailable.';
+          } else if (error.code === error.TIMEOUT) {
+            msg = 'Location request timed out.';
+          }
+          reject(new Error(msg));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  };
+
   const handleCheckIn = async () => {
     setError('');
     setSuccessMsg('');
@@ -231,8 +259,20 @@ export default function EmployeeDashboard() {
     }
 
     setBtnLoading(true);
+    let coords = {};
+
+    if (shiftSettings?.geofencingEnabled) {
+      try {
+        coords = await getCoordinates();
+      } catch (locErr) {
+        setError(locErr.message || 'Location access is required to mark attendance.');
+        setBtnLoading(false);
+        return;
+      }
+    }
+
     try {
-      const res = await employeeApi.checkIn(remarks);
+      const res = await employeeApi.checkIn({ remarks, ...coords });
       if (res.success) {
         setSuccessMsg(res.message || 'Checked in successfully.');
         setRemarks('');
@@ -255,8 +295,20 @@ export default function EmployeeDashboard() {
     }
 
     setBtnLoading(true);
+    let coords = {};
+
+    if (shiftSettings?.geofencingEnabled) {
+      try {
+        coords = await getCoordinates();
+      } catch (locErr) {
+        setError(locErr.message || 'Location access is required to mark check-out.');
+        setBtnLoading(false);
+        return;
+      }
+    }
+
     try {
-      const res = await employeeApi.checkOut();
+      const res = await employeeApi.checkOut(coords);
       if (res.success) {
         setSuccessMsg(res.message || 'Checked out successfully.');
         await fetchStatus();

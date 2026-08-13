@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ArrowLeft, User, Phone, Mail, BookOpen, 
   Sparkles, Check, RefreshCw, Search
@@ -19,6 +19,7 @@ const ManualEnrollment = ({ onNavigate }) => {
   const [courseFilter, setCourseFilter] = useState('');
 
   // Form State
+  const currentYear = new Date().getFullYear();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -26,14 +27,17 @@ const ManualEnrollment = ({ onNavigate }) => {
     fatherName: '',
     dob: '',
     course: 'Digital Marketing',
-    rollNo: '',
+    rollNo: `RJ/${currentYear}/`,
     section: '',
     admissionDate: new Date().toISOString().split('T')[0],
     totalFee: '',
     discount: '',
+    depositAmount: '',
     paymentType: 'Installments',
     installmentCount: 3
   });
+
+  const [installments, setInstallments] = useState([]);
 
   const filteredCourses = useMemo(() => {
     const q = courseFilter.toLowerCase().trim();
@@ -87,41 +91,60 @@ const ManualEnrollment = ({ onNavigate }) => {
     }
   };
 
-  // Live calculations
-  const billingSummary = useMemo(() => {
+  // Trigger regeneration of installments list when core form data changes
+  useEffect(() => {
     const totalFeeNum = Number(formData.totalFee) || 0;
     const discountNum = Number(formData.discount) || 0;
+    const depositNum = Number(formData.depositAmount) || 0;
     const subtotal = Math.max(0, totalFeeNum - discountNum);
     const totalPayable = subtotal;
+    const emiPayable = Math.max(0, totalPayable - depositNum);
+
+    const generated = [];
     
-    // Installments generator
-    const installments = [];
-    if (formData.paymentType === 'One-Time') {
-      installments.push({
-        name: 'Single Premium',
-        amount: totalPayable,
+    // Add Admission Deposit if present
+    if (depositNum > 0) {
+      generated.push({
+        name: 'Admission Deposit',
+        amount: depositNum,
         dueDate: formData.admissionDate
       });
+    }
+
+    if (formData.paymentType === 'One-Time') {
+      if (emiPayable > 0 || depositNum === 0) {
+        generated.push({
+          name: 'Single Premium',
+          amount: emiPayable > 0 ? emiPayable : totalPayable,
+          dueDate: formData.admissionDate
+        });
+      }
     } else {
+      // Installments
       const count = Math.max(1, parseInt(formData.installmentCount) || 1);
-      const amtPerInstallment = Math.round(totalPayable / count);
+      const amtPerInstallment = Math.round(emiPayable / count);
       const baseDate = new Date(formData.admissionDate);
+
       for (let i = 0; i < count; i++) {
-        // Every month 1 installment (1-month gap instead of quarterly)
         const dueDate = new Date(baseDate);
         const targetDay = dueDate.getDate();
         dueDate.setDate(1);
-        dueDate.setMonth(dueDate.getMonth() + i);
+        
+        // If there's a deposit, the EMIs start 1 month after admission (i + 1)
+        // If no deposit, EMIs start on admission date (i)
+        const monthOffset = depositNum > 0 ? i + 1 : i;
+        dueDate.setMonth(dueDate.getMonth() + monthOffset);
+        
         const daysInMonth = new Date(dueDate.getFullYear(), dueDate.getMonth() + 1, 0).getDate();
         dueDate.setDate(Math.min(targetDay, daysInMonth));
         
         // Handle rounding difference on final installment
         const isLast = i === count - 1;
         const installmentAmt = isLast 
-          ? totalPayable - (amtPerInstallment * (count - 1)) 
+          ? emiPayable - (amtPerInstallment * (count - 1)) 
           : amtPerInstallment;
 
-        installments.push({
+        generated.push({
           name: `Installment ${i + 1}`,
           amount: installmentAmt,
           dueDate: dueDate.toISOString().split('T')[0]
@@ -129,13 +152,68 @@ const ManualEnrollment = ({ onNavigate }) => {
       }
     }
 
+    setInstallments(generated);
+  }, [
+    formData.totalFee,
+    formData.discount,
+    formData.depositAmount,
+    formData.paymentType,
+    formData.installmentCount,
+    formData.admissionDate
+  ]);
+
+  // Dynamic Date prefix year updater
+  const handleAdmissionDateChange = (val) => {
+    const newYear = new Date(val).getFullYear();
+    setFormData(prev => {
+      let updatedRollNo = prev.rollNo;
+      const prefixRegex = /^RJ\/\d{4}\//;
+      if (prefixRegex.test(prev.rollNo)) {
+        updatedRollNo = prev.rollNo.replace(prefixRegex, `RJ/${newYear}/`);
+      } else if (!prev.rollNo || prev.rollNo.trim() === '') {
+        updatedRollNo = `RJ/${newYear}/`;
+      }
+      return {
+        ...prev,
+        admissionDate: val,
+        rollNo: updatedRollNo
+      };
+    });
+    if (validationErrors.admissionDate) {
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        delete next.admissionDate;
+        return next;
+      });
+    }
+  };
+
+  // Callback to handle manual modification of installments in the schedule list
+  const handleInstallmentChange = (index, field, value) => {
+    setInstallments(prev => {
+      const next = [...prev];
+      next[index] = {
+        ...next[index],
+        [field]: field === 'amount' ? (value === '' ? '' : Number(value)) : value
+      };
+      return next;
+    });
+  };
+
+  // Live calculations
+  const billingSummary = useMemo(() => {
+    const totalFeeNum = Number(formData.totalFee) || 0;
+    const discountNum = Number(formData.discount) || 0;
+    const subtotal = Math.max(0, totalFeeNum - discountNum);
+    const totalPayable = subtotal;
+
     return {
       subtotal,
       taxAmount: 0,
       totalPayable,
       installments
     };
-  }, [formData]);
+  }, [formData.totalFee, formData.discount, installments]);
 
   const validateForm = () => {
     const errors = {};
@@ -155,6 +233,12 @@ const ManualEnrollment = ({ onNavigate }) => {
 
     if (!selectedCourses || selectedCourses.length === 0) {
       errors.course = 'Please select at least one course';
+    }
+
+    // Verify installments sum matches Net Total Payable
+    const sum = installments.reduce((acc, inst) => acc + (Number(inst.amount) || 0), 0);
+    if (formData.paymentType === 'Installments' && sum !== billingSummary.totalPayable) {
+      errors.installments = `Sum of installments (₹${sum}) must equal Net Total Payable (₹${billingSummary.totalPayable}).`;
     }
 
     setValidationErrors(errors);
@@ -193,7 +277,7 @@ const ManualEnrollment = ({ onNavigate }) => {
           studentId: student._id,
           totalFees: billingSummary.totalPayable,
           paymentPlan: formData.paymentType === 'One-Time' ? 'FULL_PAYMENT' : 'INSTALLMENT',
-          numberOfInstallments: formData.paymentType === 'One-Time' ? undefined : Number(formData.installmentCount),
+          numberOfInstallments: formData.paymentType === 'One-Time' ? undefined : billingSummary.installments.length,
           firstDueDate: formData.paymentType === 'One-Time' ? undefined : (billingSummary.installments[0]?.dueDate || formData.admissionDate),
           installments: billingSummary.installments.map((inst, index) => ({
             installmentNo: index + 1,
@@ -402,7 +486,7 @@ const ManualEnrollment = ({ onNavigate }) => {
                   value={formData.rollNo} 
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#DEDCD8] rounded-xl font-semibold outline-none focus:border-amber-400"
-                  placeholder="e.g. STU-2026-045"
+                  placeholder={`e.g. RJ/${formData.admissionDate ? new Date(formData.admissionDate).getFullYear() : new Date().getFullYear()}/045`}
                 />
               </div>
 
@@ -427,7 +511,7 @@ const ManualEnrollment = ({ onNavigate }) => {
               <span>Billing Fees Structures</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Total Fees Base (₹) *</label>
                 <input 
@@ -455,6 +539,21 @@ const ManualEnrollment = ({ onNavigate }) => {
               </div>
 
               <div className="space-y-1">
+                <label className="block text-[10px] uppercase text-slate-400 font-bold">Admission Deposit / Down Payment (₹)</label>
+                <input 
+                  type="number" 
+                  name="depositAmount" 
+                  value={formData.depositAmount} 
+                  onChange={handleChange}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-[#DEDCD8] rounded-xl font-semibold outline-none focus:border-amber-400"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="space-y-1">
                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Plan Classification</label>
                 <select 
                   name="paymentType" 
@@ -467,7 +566,7 @@ const ManualEnrollment = ({ onNavigate }) => {
                 </select>
               </div>
 
-              {formData.paymentType === 'Installments' && (
+              {formData.paymentType === 'Installments' ? (
                 <div className="space-y-1">
                   <label className="block text-[10px] uppercase text-slate-400 font-bold">Installment Term Count</label>
                   <select 
@@ -482,14 +581,24 @@ const ManualEnrollment = ({ onNavigate }) => {
                     <option value="6">6 Installments</option>
                   </select>
                 </div>
+              ) : (
+                <div className="space-y-1 opacity-50 select-none">
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold">Installment Term Count</label>
+                  <select 
+                    disabled
+                    className="w-full px-3 py-2 border border-[#DEDCD8] bg-slate-50 rounded-xl font-bold outline-none cursor-not-allowed"
+                  >
+                    <option>N/A</option>
+                  </select>
+                </div>
               )}
-            </div>
 
-            <DatePicker
-              label="Enrollment / Admission Date"
-              value={formData.admissionDate}
-              onChange={(val) => handleChange({ target: { name: 'admissionDate', value: val } })}
-            />
+              <DatePicker
+                label="Enrollment / Admission Date"
+                value={formData.admissionDate}
+                onChange={(val) => handleAdmissionDateChange(val)}
+              />
+            </div>
           </div>
 
         </div>
@@ -516,20 +625,40 @@ const ManualEnrollment = ({ onNavigate }) => {
               </div>
             </div>
 
-            {/* Installments listing previews */}
+            {/* Installments listing previews (editable) */}
             <div className="space-y-2 pt-2">
               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide block">Projected Billing Schedule</span>
-              <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
-                {billingSummary.installments.map((inst, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-2 bg-[#FAF9F6] border border-[#EBEAE6] rounded-xl text-[10px] font-bold">
-                    <div className="space-y-0.5">
-                      <span className="text-slate-800 uppercase block">{inst.name}</span>
-                      <span className="text-[8px] text-slate-400 font-medium font-sans">Due: {formatDate(inst.dueDate)}</span>
+              <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                {installments.map((inst, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-2.5 bg-[#FAF9F6] border border-[#EBEAE6] rounded-xl text-[10px] font-bold gap-2">
+                    <div className="flex-1 space-y-1">
+                      <span className="text-slate-800 uppercase block leading-none">{inst.name}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[8px] text-slate-400 font-semibold uppercase">Due:</span>
+                        <input 
+                          type="date" 
+                          value={inst.dueDate} 
+                          onChange={(e) => handleInstallmentChange(idx, 'dueDate', e.target.value)} 
+                          className="w-[105px] px-1 py-0.5 border border-[#DEDCD8] rounded bg-white text-[9px] font-medium outline-none text-slate-600 focus:border-amber-400"
+                        />
+                      </div>
                     </div>
-                    <span className="text-slate-800">{formatINR(inst.amount)}</span>
+                    <div className="relative flex items-center shrink-0">
+                      <span className="absolute left-1.5 text-[9px] text-slate-450 font-extrabold">₹</span>
+                      <input 
+                        type="number" 
+                        value={inst.amount} 
+                        onChange={(e) => handleInstallmentChange(idx, 'amount', e.target.value)} 
+                        className="w-[75px] pl-3.5 pr-1 py-0.5 border border-[#DEDCD8] rounded bg-white text-[10px] font-extrabold text-slate-850 text-right outline-none focus:border-amber-400"
+                        min="0"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
+              {validationErrors.installments && (
+                <p className="text-[9px] text-rose-500 font-medium leading-normal mt-1.5">{validationErrors.installments}</p>
+              )}
             </div>
 
             <button

@@ -234,8 +234,8 @@ export const feesApi = {
     return response.data;
   },
 
-  getUnreadCount: async () => {
-    const response = await axiosInstance.get('/notifications/unread');
+  getUnreadCount: async (params = {}) => {
+    const response = await axiosInstance.get('/notifications/unread', { params });
     return response.data;
   },
 

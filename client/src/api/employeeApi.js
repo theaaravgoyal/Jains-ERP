@@ -21,13 +21,14 @@ export const employeeApi = {
     return data;
   },
 
-  checkIn: async (remarks) => {
-    const { data } = await employeeAxios.post('/attendance/checkin', { remarks });
+  checkIn: async (payload) => {
+    const body = typeof payload === 'string' ? { remarks: payload } : payload;
+    const { data } = await employeeAxios.post('/attendance/checkin', body);
     return data;
   },
 
-  checkOut: async () => {
-    const { data } = await employeeAxios.post('/attendance/checkout');
+  checkOut: async (payload = {}) => {
+    const { data } = await employeeAxios.post('/attendance/checkout', payload);
     return data;
   },
 

@@ -21,6 +21,15 @@ To restore database connectivity and secure the production environment, add or v
    - **Type:** Secret string
    - **Value:** Ensure a strong secret key is configured (e.g. your existing production secret).
 
+4. **`REDIS_URL`** (Optional/Highly Recommended)
+   - **Type:** Secret string
+   - **Value:** The Redis connection URI (e.g. `redis://default:password@host:port` or `rediss://...` for secure TLS). If omitted, background queues, workers, and schedulers are disabled gracefully to prevent local localhost connection spamming.
+   - **Verification:** Logs will print `[Redis] Connecting to Redis server...` followed by `[Redis] Redis client is ready and connected.`
+
+5. **`REDIS_TLS`** (Optional)
+   - **Type:** String
+   - **Value:** `true` (if TLS encryption is required manually; automatically enabled if scheme is `rediss://`).
+
 ---
 
 ## 2. Hostinger Static Deployment (Frontend)

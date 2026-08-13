@@ -75,6 +75,13 @@ graph TD
 - **Asset Directory:** `/client/dist` static assets uploaded to file manager.
 - **Client Routing:** `.htaccess` configured for SPA fallback routing.
 
+### Redis & Background Jobs Configuration
+- **Redis Connection Type:** Managed Redis service (e.g. Railway Redis addon or external Upstash cluster).
+- **Environment Variables Required:**
+  - `REDIS_URL`: The Redis connection URL (e.g. `redis://...` or `rediss://...`).
+  - `REDIS_TLS`: Set to `true` if secure TLS connection is required (automatically enabled if scheme is `rediss://`).
+- **Fail-safe Mode:** If `REDIS_URL` (or an external non-localhost `REDIS_HOST`) is not configured in production, all BullMQ queues, background workers, and scheduled repeatable cron jobs will be gracefully disabled. This prevents the server from spamming connection refusal errors to `127.0.0.1:6379`.
+
 ---
 
 ## 5. CORS Configurations

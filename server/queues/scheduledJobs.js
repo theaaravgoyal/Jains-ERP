@@ -4,6 +4,12 @@ const { feeQueue, attendanceQueue, systemQueue } = require('./queueManager');
  * Register repeatable cron jobs with BullMQ
  */
 const initScheduledJobs = async () => {
+  const { isRedisConfigured } = require('../config/redis');
+  if (!isRedisConfigured()) {
+    console.log('[BullMQ Scheduler] Redis is not configured. Repeatable job registration skipped.');
+    return;
+  }
+
   try {
     console.log('[BullMQ Scheduler] Registering repeatable scheduled jobs...');
 

@@ -1,5 +1,5 @@
 const { Queue } = require('bullmq');
-const { isRedisReady, redisConnectionOptions, getRedisClient } = require('../config/redis');
+const { isRedisReady, redisConnectionOptions, getRedisClient, isRedisConfigured } = require('../config/redis');
 
 // Default job options
 const defaultJobOptions = {
@@ -20,9 +20,7 @@ const defaultJobOptions = {
 
 const createSafeQueue = (name) => {
   try {
-    const isProd = process.env.NODE_ENV === 'production';
-    const hasRedis = !!(process.env.REDIS_URL || (process.env.REDIS_HOST && process.env.REDIS_HOST !== '127.0.0.1'));
-    if (isProd && !hasRedis) {
+    if (!isRedisConfigured()) {
       return {
         name,
         add: async () => null,

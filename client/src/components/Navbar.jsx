@@ -23,8 +23,14 @@ const Navbar = () => {
   };
 
   const isFetchingNotifRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
 
   const fetchNotifications = async (silent = false) => {
+    const now = Date.now();
+    if (silent && now - lastFetchTimeRef.current < 45000) {
+      return; // Throttle background polling and tab-focus refetches
+    }
+
     if (isFetchingNotifRef.current && silent) return;
     isFetchingNotifRef.current = true;
     if (!silent) setLoadingNotifications(true);
@@ -40,6 +46,7 @@ const Navbar = () => {
       if (countRes.success) {
         setUnreadCount(countRes.data.count || 0);
       }
+      lastFetchTimeRef.current = now;
     } catch (err) {
       if (!silent) console.error('Failed to fetch notifications center alerts:', err);
     } finally {
@@ -75,12 +82,12 @@ const Navbar = () => {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll notifications every 20 seconds only when tab is active
+    // Poll notifications every 60 seconds only when tab is active
     const interval = setInterval(() => {
       if (!document.hidden) {
         fetchNotifications(true);
       }
-    }, 20000);
+    }, 60000);
 
     const onVisibilityChange = () => {
       if (!document.hidden) {

@@ -1,12 +1,19 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, LayoutGrid, Settings } from 'lucide-react';
-import * as Icons from 'lucide-react';
+import { ClipboardList, DollarSign, UserCheck, Award, HelpCircle } from 'lucide-react';
 import { ROUTES } from '../constants/Routes';
 
 // Reusable Dynamic Icon Renderer mapping string name to Lucide components
 const DynamicIcon = ({ name, size = 20, className = '' }) => {
-  const IconComponent = Icons[name] || Icons.HelpCircle;
+  const iconMap = {
+    ClipboardList,
+    DollarSign,
+    UserCheck,
+    Award,
+    HelpCircle
+  };
+  const IconComponent = iconMap[name] || HelpCircle;
   return <IconComponent size={size} className={className} />;
 };
 

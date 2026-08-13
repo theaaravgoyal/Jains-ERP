@@ -129,17 +129,21 @@ exports.loginEmployee = async (req, res, next) => {
 // @access  Private
 exports.getEmployeeProfile = async (req, res, next) => {
   try {
+    const employee = await Employee.findById(req.employee._id).select('+profilePicture');
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee profile not found' });
+    }
     return res.status(200).json({
       success: true,
       employee: {
-        id: req.employee._id,
-        name: req.employee.name,
-        lastName: req.employee.lastName,
-        email: req.employee.email,
-        phone: req.employee.phone,
-        department: req.employee.department || '',
-        designation: req.employee.designation || 'Employee',
-        profilePicture: req.employee.profilePicture || ''
+        id: employee._id,
+        name: employee.name,
+        lastName: employee.lastName,
+        email: employee.email,
+        phone: employee.phone,
+        department: employee.department || '',
+        designation: employee.designation || 'Employee',
+        profilePicture: employee.profilePicture || ''
       }
     });
   } catch (err) {

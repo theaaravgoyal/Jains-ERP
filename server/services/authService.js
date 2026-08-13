@@ -229,7 +229,6 @@ class AuthService {
     if (decoded.email) {
       let matchedRole = 'Super Admin';
       if (decoded.email.includes('attendance')) matchedRole = 'Attendance Admin';
-      else if (decoded.email.includes('website')) matchedRole = 'Website Admin';
       else if (decoded.email.includes('fees')) matchedRole = 'Fees Admin';
       else if (decoded.email.includes('leads')) matchedRole = 'Lead Admin';
 
@@ -242,8 +241,6 @@ class AuthService {
         ],
         'Attendance Admin': [
           { code: 'access_attendance', name: 'Attendance Access', route: '/attendance', module: 'Attendance Management', icon: 'ClipboardList' }
-        ],
-        'Website Admin': [
         ],
         'Fees Admin': [
           { code: 'access_fees', name: 'Fees Access', route: '/fees-management', module: 'Fees Management', icon: 'DollarSign' }

@@ -153,7 +153,7 @@ const seedDefaultAuthData = async () => {
   }
 };
 
-const DEFAULT_MONGO_URI = 'mongodb+srv://yadavakhil415_db_user:XANHB3uc4LdlhhwQ@ac-c1qxgnd.dhl6oc8.mongodb.net/attendanceDB?retryWrites=true&w=majority';
+const DEFAULT_MONGO_URI = 'mongodb://127.0.0.1:27017/attendanceDB';
 
 let isConnecting = false;
 let lastDbError = null;

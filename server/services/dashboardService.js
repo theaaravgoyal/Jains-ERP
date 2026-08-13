@@ -202,35 +202,45 @@ class DashboardService {
    * Fetch 10 most recent payment log entries.
    */
   async getRecentPayments() {
-    return await paymentRepository.getRecentPayments(10);
+    return await cacheHelper.remember('dashboard:recent_payments', 300, async () => {
+      return await paymentRepository.getRecentPayments(10);
+    });
   }
 
   /**
    * Fetch 10 upcoming scheduled dues.
    */
   async getUpcomingDue() {
-    return await installmentRepository.getUpcomingDue(10);
+    return await cacheHelper.remember('dashboard:upcoming_due', 300, async () => {
+      return await installmentRepository.getUpcomingDue(10);
+    });
   }
 
   /**
    * Fetch 10 oldest overdue installments.
    */
   async getOverdue() {
-    return await installmentRepository.getOverdue(10);
+    return await cacheHelper.remember('dashboard:overdue', 300, async () => {
+      return await installmentRepository.getOverdue(10);
+    });
   }
 
   /**
    * Fetch latest 10 student admissions.
    */
   async getRecentStudents() {
-    return await studentRepository.getRecentStudents(10);
+    return await cacheHelper.remember('dashboard:recent_students', 300, async () => {
+      return await studentRepository.getRecentStudents(10);
+    });
   }
 
   /**
    * Fetch latest 15 activity audit logs.
    */
   async getRecentActivities() {
-    return await activityLogRepository.getRecent(15);
+    return await cacheHelper.remember('dashboard:recent_activities', 300, async () => {
+      return await activityLogRepository.getRecent(15);
+    });
   }
 }
 

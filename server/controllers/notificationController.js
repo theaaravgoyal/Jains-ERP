@@ -18,7 +18,15 @@ const getNotifications = async (req, res) => {
       dateFilter 
     } = req.query;
 
-    const queryFilter = { targetUser: userId };
+    const queryFilter = {};
+    if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
+      queryFilter.$or = [
+        { targetUser: userId },
+        { isAdmin: true }
+      ];
+    } else {
+      queryFilter.targetUser = userId;
+    }
 
     // Apply exact matches
     if (module) queryFilter.module = module;
@@ -76,7 +84,21 @@ const getNotifications = async (req, res) => {
 const getUnreadCount = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
-    const count = await Notification.countDocuments({ targetUser: userId, isRead: false });
+    const { module } = req.query;
+
+    const queryFilter = { isRead: false };
+    if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
+      queryFilter.$or = [
+        { targetUser: userId },
+        { isAdmin: true }
+      ];
+    } else {
+      queryFilter.targetUser = userId;
+    }
+
+    if (module) queryFilter.module = module;
+
+    const count = await Notification.countDocuments(queryFilter);
     return sendSuccess(res, 'Unread notification count retrieved', { count }, 200);
   } catch (error) {
     console.error('getUnreadCount error:', error);

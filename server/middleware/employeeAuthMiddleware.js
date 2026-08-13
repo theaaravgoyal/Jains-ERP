@@ -13,7 +13,13 @@ const employeeProtect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
 
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_erp_key_12345');
+      let decoded;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_erp_key_12345');
+      } catch (jwtErr) {
+        console.error('Employee JWT verify error:', jwtErr.message);
+        return res.status(401).json({ success: false, message: 'Not authorized, token expired or invalid.' });
+      }
 
       // Find employee
       const employee = await Employee.findById(decoded.id);
@@ -30,8 +36,8 @@ const employeeProtect = async (req, res, next) => {
       req.employee = employee;
       next();
     } catch (error) {
-      console.error('Employee auth verification error:', error.message);
-      return res.status(401).json({ success: false, message: 'Not authorized, token failed.' });
+      console.error('Employee auth verification database/server error:', error.message);
+      return res.status(500).json({ success: false, message: 'Database connection timeout or server error. Please try again.' });
     }
   }
 

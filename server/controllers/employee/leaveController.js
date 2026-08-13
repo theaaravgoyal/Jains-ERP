@@ -132,7 +132,7 @@ exports.cancelLeave = async (req, res, next) => {
         isAdmin: true,
         senderName: `${emp.name} ${emp.lastName}`,
         title: 'Leave Application Cancelled',
-        message: `${emp.name} ${emp.lastName} has cancelled their ${leave.leaveType} leave application (${new Date(leave.startDate).toLocaleDateString('en-IN')} - ${new Date(leave.endDate).toLocaleDateString('en-IN')}).`,
+        message: `${emp.name} ${emp.lastName} has cancelled their ${leave.leaveType} leave application (${new Date(leave.startDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })} - ${new Date(leave.endDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}).`,
         type: 'INFO',
         module: 'Attendance'
       });

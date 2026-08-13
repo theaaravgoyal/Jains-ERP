@@ -53,7 +53,11 @@ const SettingsSchema = new mongoose.Schema(
       lateThresholdTime: { type: String, default: '10:15' },
       halfDayThresholdHours: { type: Number, default: 4.0 },
       fullDayThresholdHours: { type: Number, default: 8.0 },
-      monthlyPaidLeavesQuota: { type: Number, default: 2 }
+      monthlyPaidLeavesQuota: { type: Number, default: 2 },
+      geofencingEnabled: { type: Boolean, default: false },
+      officeLatitude: { type: Number, default: 26.9405 },
+      officeLongitude: { type: Number, default: 75.7145 },
+      allowedRadius: { type: Number, default: 100 }
     }
   },
   { timestamps: true }

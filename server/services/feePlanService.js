@@ -43,7 +43,9 @@ class FeePlanService {
       finalPlan.firstDueDate = firstDueDate || new Date();
     } else {
       // paymentPlan === 'INSTALLMENT'
-      const numInstallments = parseInt(numberOfInstallments);
+      const numInstallments = planData.installments && planData.installments.length > 0
+        ? planData.installments.length
+        : parseInt(numberOfInstallments);
       finalPlan.numberOfInstallments = numInstallments;
       finalPlan.installmentAmount = Math.round(totalFees / numInstallments);
       finalPlan.remainingAmount = totalFees;
@@ -57,7 +59,13 @@ class FeePlanService {
     // Auto-generate installments and invoices if installment plan is chosen
     if (paymentPlan === 'INSTALLMENT') {
       const installmentService = require('./installmentService');
-      const createdInstallments = await installmentService.generateInstallments(newPlan, creatorId);
+      
+      let createdInstallments;
+      if (planData.installments && planData.installments.length > 0) {
+        createdInstallments = await installmentService.saveCustomInstallments(newPlan, planData.installments, creatorId);
+      } else {
+        createdInstallments = await installmentService.generateInstallments(newPlan, creatorId);
+      }
       
       // Create invoice for each installment
       for (const inst of createdInstallments) {

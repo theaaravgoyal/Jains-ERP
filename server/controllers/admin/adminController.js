@@ -376,7 +376,7 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
 
       report.push({
         date: currentDate.toISOString(),
-        dayOfWeek: currentDate.toLocaleDateString('en-US', { weekday: 'long' }),
+        dayOfWeek: currentDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Kolkata' }),
         status: status,
         checkIn: record ? record.checkIn || '-' : '-',
         checkOut: record ? record.checkOut || '-' : '-',
@@ -475,7 +475,8 @@ exports.markHoliday = async (req, res, next) => {
       const holidayDateFormatted = new Date(holiday.date).toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'short',
-        year: 'numeric'
+        year: 'numeric',
+        timeZone: 'Asia/Kolkata'
       });
       const notificationsToInsert = employees.map((emp) => ({
         recipient: emp._id,
@@ -644,7 +645,11 @@ exports.getAttendanceSettings = async (req, res, next) => {
       lateThresholdTime: '10:15',
       halfDayThresholdHours: 4.0,
       fullDayThresholdHours: 8.0,
-      monthlyPaidLeavesQuota: 2
+      monthlyPaidLeavesQuota: 2,
+      geofencingEnabled: false,
+      officeLatitude: 26.9405,
+      officeLongitude: 75.7145,
+      allowedRadius: 100
     };
 
     return res.status(200).json({
@@ -667,7 +672,11 @@ exports.updateAttendanceSettings = async (req, res, next) => {
       lateThresholdTime,
       halfDayThresholdHours,
       fullDayThresholdHours,
-      monthlyPaidLeavesQuota
+      monthlyPaidLeavesQuota,
+      geofencingEnabled,
+      officeLatitude,
+      officeLongitude,
+      allowedRadius
     } = req.body;
 
     const Settings = require('../../models/Settings');
@@ -686,6 +695,10 @@ exports.updateAttendanceSettings = async (req, res, next) => {
     if (halfDayThresholdHours !== undefined) settings.attendance.halfDayThresholdHours = Number(halfDayThresholdHours);
     if (fullDayThresholdHours !== undefined) settings.attendance.fullDayThresholdHours = Number(fullDayThresholdHours);
     if (monthlyPaidLeavesQuota !== undefined) settings.attendance.monthlyPaidLeavesQuota = Number(monthlyPaidLeavesQuota);
+    if (geofencingEnabled !== undefined) settings.attendance.geofencingEnabled = geofencingEnabled === true || geofencingEnabled === 'true';
+    if (officeLatitude !== undefined) settings.attendance.officeLatitude = Number(officeLatitude);
+    if (officeLongitude !== undefined) settings.attendance.officeLongitude = Number(officeLongitude);
+    if (allowedRadius !== undefined) settings.attendance.allowedRadius = Number(allowedRadius);
 
     await settings.save();
 

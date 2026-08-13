@@ -14,6 +14,21 @@ const getIstTodayBoundaries = (dateInput = new Date()) => {
   return { start, end, istDayOfWeek: istTime.getUTCDay() };
 };
 
+const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3; // Earth radius in meters
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+};
+
 // @desc    Get today's check-in/out status
 // @route   GET /api/attendance/today
 // @access  Private (Employee)
@@ -87,7 +102,34 @@ exports.getTodayAttendance = async (req, res, next) => {
 // @access  Private (Employee)
 exports.checkInEmployee = async (req, res, next) => {
   try {
-    const { remarks } = req.body;
+    const { remarks, latitude, longitude } = req.body;
+
+    const settings = await Settings.findOne();
+    const attendanceSettings = settings?.attendance || {};
+
+    if (attendanceSettings.geofencingEnabled) {
+      if (latitude === undefined || longitude === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: 'Office geofencing is enabled. Access to device location coordinates is required to mark check-in.'
+        });
+      }
+      
+      const distance = getDistanceInMeters(
+        Number(latitude),
+        Number(longitude),
+        attendanceSettings.officeLatitude || 26.9405,
+        attendanceSettings.officeLongitude || 75.7145
+      );
+
+      const allowedRadius = attendanceSettings.allowedRadius || 100;
+      if (distance > allowedRadius) {
+        return res.status(400).json({
+          success: false,
+          message: `Check-in denied. You are outside the office boundary (Distance: ${Math.round(distance)}m, allowed limit: ${allowedRadius}m).`
+        });
+      }
+    }
 
     const { start: todayStart, end: todayEnd, istDayOfWeek } = getIstTodayBoundaries();
 
@@ -153,8 +195,6 @@ exports.checkInEmployee = async (req, res, next) => {
     const minutes = istTime.getUTCMinutes();
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-    // Get dynamic late threshold from Settings
-    const settings = await Settings.findOne();
     const lateThresholdStr = settings?.attendance?.lateThresholdTime || '10:15';
     const [threshH, threshM] = lateThresholdStr.split(':').map(Number);
     const isLate = (hours * 60 + minutes) > (threshH * 60 + (threshM || 0));
@@ -184,6 +224,35 @@ exports.checkInEmployee = async (req, res, next) => {
 // @access  Private (Employee)
 exports.checkOutEmployee = async (req, res, next) => {
   try {
+    const { latitude, longitude } = req.body;
+
+    const settings = await Settings.findOne();
+    const attendanceSettings = settings?.attendance || {};
+
+    if (attendanceSettings.geofencingEnabled) {
+      if (latitude === undefined || longitude === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: 'Office geofencing is enabled. Access to device location coordinates is required to mark check-out.'
+        });
+      }
+      
+      const distance = getDistanceInMeters(
+        Number(latitude),
+        Number(longitude),
+        attendanceSettings.officeLatitude || 26.9405,
+        attendanceSettings.officeLongitude || 75.7145
+      );
+
+      const allowedRadius = attendanceSettings.allowedRadius || 100;
+      if (distance > allowedRadius) {
+        return res.status(400).json({
+          success: false,
+          message: `Check-out denied. You are outside the office boundary (Distance: ${Math.round(distance)}m, allowed limit: ${allowedRadius}m).`
+        });
+      }
+    }
+
     const { start: todayStart, end: todayEnd } = getIstTodayBoundaries();
 
     const attendance = await Attendance.findOne({
@@ -214,8 +283,6 @@ exports.checkOutEmployee = async (req, res, next) => {
     const roundedHours = Math.round(durationHours * 10) / 10;
     attendance.workingHours = roundedHours;
 
-    // Fetch dynamic half-day threshold from Settings (Default 4.0 hours)
-    const settings = await Settings.findOne();
     const halfDayThreshold = settings?.attendance?.halfDayThresholdHours || 4.0;
 
     // If employee worked less than 4 hours, mark as Half Day

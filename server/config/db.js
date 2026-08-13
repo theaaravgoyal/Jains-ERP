@@ -153,7 +153,7 @@ const seedDefaultAuthData = async () => {
   }
 };
 
-const DEFAULT_MONGO_URI = 'mongodb://yadavakhil415_db_user:XANHB3uc4LdlhhwQ@ac-c1qxgnd-shard-00-00.dhl6oc8.mongodb.net:27017,ac-c1qxgnd-shard-00-01.dhl6oc8.mongodb.net:27017,ac-c1qxgnd-shard-00-02.dhl6oc8.mongodb.net:27017/attendanceDB?ssl=true&replicaSet=atlas-xhsn04-shard-0&authSource=admin&retryWrites=true&w=majority';
+const DEFAULT_MONGO_URI = 'mongodb+srv://yadavakhil415_db_user:XANHB3uc4LdlhhwQ@ac-c1qxgnd.dhl6oc8.mongodb.net/attendanceDB?retryWrites=true&w=majority';
 
 let isConnecting = false;
 let lastDbError = null;

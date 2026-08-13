@@ -68,6 +68,51 @@ class InstallmentService {
   }
 
   /**
+   * Save custom-edited installment schedule documents.
+   * @param {Object} feePlan - The parent Fee Plan.
+   * @param {Array<Object>} customInstallments - List of custom installments.
+   * @param {string} creatorId - User ID of staff setting up the plan.
+   */
+  async saveCustomInstallments(feePlan, customInstallments, creatorId) {
+    // Application-level duplicate check: Verify no installments already exist
+    const existing = await installmentRepository.findByStudentId(feePlan.studentId);
+    if (existing && existing.length > 0) {
+      throw new ConflictError('Installments already exist for this student.');
+    }
+
+    const installments = customInstallments.map((inst, index) => {
+      const amount = Number(inst.amount);
+      if (amount <= 0) {
+        throw new BadRequestError('Installment amount must be greater than zero.');
+      }
+
+      return {
+        studentId: feePlan.studentId,
+        feePlanId: feePlan._id,
+        installmentNo: inst.installmentNo || (index + 1),
+        amount,
+        dueDate: new Date(inst.dueDate),
+        paidAmount: 0,
+        remainingAmount: amount,
+        status: 'PENDING'
+      };
+    });
+
+    // Save batch to database
+    const createdDocs = await installmentRepository.createMany(installments);
+
+    // Audit Log
+    await activityLogRepository.create({
+      action: 'INSTALLMENTS_GENERATED',
+      description: `Saved ${installments.length} custom edited installments for student.`,
+      performedBy: creatorId,
+      studentId: feePlan.studentId
+    });
+
+    return createdDocs;
+  }
+
+  /**
    * Recreate installment schedules to align with updated plan metrics.
    * Only allowed before any payment has been recorded.
    * @param {string} feePlanId - Fee Plan database Object ID.

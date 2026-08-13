@@ -69,7 +69,7 @@ graph TD
 
 ### Cloudflare Configuration
 - **DNS Record:** `cms.jainscomputer.com` -> CNAME -> `uqsxj1lg.up.railway.app`
-- **Proxy Status:** DNS ONLY (Grey Clouded) to allow direct CNAME routing to Railway without Cloudflare certificate validation conflicts.
+- **Proxy Status:** Proxied (Orange Clouded) to bypass mobile network (Jio/Airtel) ISP blocks on raw Railway CNAME records by resolving to Cloudflare edge IPs. Full/Strict SSL mode should be enabled in Cloudflare settings to prevent certificate conflicts.
 
 ### Hostinger Configuration
 - **Asset Directory:** `/client/dist` static assets uploaded to file manager.

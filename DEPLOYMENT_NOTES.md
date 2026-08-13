@@ -36,7 +36,17 @@ To restore database connectivity and secure the production environment, add or v
 
 ---
 
-## 3. Post-Deployment Verification Steps
+## 3. Cloudflare DNS Proxy Setup (Mobile compatibility)
+To guarantee the application is fully reachable from mobile 4G/5G networks (e.g. Jio and Airtel) without custom DNS overrides:
+1. Log in to your **Cloudflare Dashboard**.
+2. Navigate to your domain's **DNS Records**.
+3. Locate the CNAME record for `cms.jainscomputer.com`.
+4. Toggle the **Proxy status** switch from **DNS Only (Grey Cloud)** to **Proxied (Orange Cloud)**.
+5. In Cloudflare **SSL/TLS** menu, verify that SSL mode is set to **Full** or **Full (Strict)** to allow encrypted traffic to proxy successfully to Railway.
+
+---
+
+## 4. Post-Deployment Verification Steps
 Once both deployments complete, verify:
 - Accessing `https://erp.jainscomputer.com/` loads the page instantly.
 - Logging in as an Employee works (proves database lookup and authentication succeed).

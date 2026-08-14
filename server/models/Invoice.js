@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Counter = require('./Counter');
 
 /**
  * Invoice Schema - Represents a billing invoice document issued to a student for fees/installments.
@@ -88,21 +89,38 @@ InvoiceSchema.pre('save', async function () {
     const invoicePrefix = settingsDoc.fee?.invoicePrefix || 'INV';
     const prefix = `${invoicePrefix}-${currentYear}-`;
     
-    // Find last invoice starting with this prefix
-    const lastInvoice = await mongoose.models.Invoice.findOne({
-      invoiceNumber: new RegExp(`^${prefix}`)
-    }).sort({ invoiceNumber: -1 });
+    // Find or seed counter
+    let counter = await Counter.findOne({ key: `invoice_counter_${invoicePrefix}_${currentYear}` });
+    if (!counter) {
+      // Find last invoice starting with this prefix
+      const lastInvoice = await mongoose.models.Invoice.findOne({
+        invoiceNumber: new RegExp(`^${prefix}`)
+      }).sort({ invoiceNumber: -1 });
 
-    let nextNum = 1;
-    if (lastInvoice && lastInvoice.invoiceNumber) {
-      const parts = lastInvoice.invoiceNumber.split('-');
-      const lastNum = parseInt(parts[2], 10);
-      if (!isNaN(lastNum)) {
-        nextNum = lastNum + 1;
+      let startVal = 0;
+      if (lastInvoice && lastInvoice.invoiceNumber) {
+        const parts = lastInvoice.invoiceNumber.split('-');
+        const lastNum = parseInt(parts[2], 10);
+        if (!isNaN(lastNum)) {
+          startVal = lastNum;
+        }
       }
+      
+      counter = await Counter.findOneAndUpdate(
+        { key: `invoice_counter_${invoicePrefix}_${currentYear}` },
+        { $setOnInsert: { value: startVal } },
+        { upsert: true, new: true, returnDocument: 'after' }
+      );
     }
     
-    const padded = String(nextNum).padStart(6, '0');
+    // Now increment atomically
+    counter = await Counter.findOneAndUpdate(
+      { key: `invoice_counter_${invoicePrefix}_${currentYear}` },
+      { $inc: { value: 1 } },
+      { returnDocument: 'after', new: true }
+    );
+    
+    const padded = String(counter.value).padStart(6, '0');
     this.invoiceNumber = `${prefix}${padded}`;
   }
 });

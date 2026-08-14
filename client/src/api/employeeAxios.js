@@ -53,6 +53,9 @@ employeeAxios.interceptors.response.use(
       if (!error.config?.url?.includes('/employee/login')) {
         localStorage.removeItem('employeeToken');
         localStorage.removeItem('employee');
+        window.dispatchEvent(new CustomEvent('employee-unauthorized', {
+          detail: { url: error.config?.url }
+        }));
       }
     }
     return Promise.reject(error);

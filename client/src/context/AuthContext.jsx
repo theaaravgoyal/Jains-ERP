@@ -8,6 +8,21 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [loading, setLoading] = useState(true);
 
+  const logout = useCallback(async (reason = 'user_initiated', endpoint = null, status = null) => {
+    console.log(`[AUTH] LOGOUT_TRIGGERED reason=${reason} endpoint=${endpoint} status=${status}`);
+    try {
+      if (token) {
+        await authApi.logout();
+      }
+    } catch (error) {
+      console.warn('Backend session cleanup skipped or offline:', error.message);
+    } finally {
+      localStorage.removeItem('token');
+      setToken('');
+      setUser(null);
+    }
+  }, [token]);
+
   useEffect(() => {
     const initializeAuth = async () => {
       if (token) {
@@ -16,14 +31,28 @@ export const AuthProvider = ({ children }) => {
           setUser(data.user);
         } catch (error) {
           console.error('Auth verification failed:', error);
-          logout();
+          // Only logout if it is an explicit 401 Unauthorized from the server
+          if (error.response && error.response.status === 401) {
+            logout('token_verification_failed_401', '/auth/me', 401);
+          }
         }
       }
       setLoading(false);
     };
 
     initializeAuth();
-  }, [token]);
+  }, [token, logout]);
+
+  useEffect(() => {
+    const handleUnauthorized = (e) => {
+      logout('token_unauthorized_event', e.detail?.url, 401);
+    };
+
+    window.addEventListener('auth-unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('auth-unauthorized', handleUnauthorized);
+    };
+  }, [logout]);
 
   const login = useCallback(async (email, password) => {
     try {
@@ -38,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Login error:', error);
       let message = 'Invalid email or password.';
       if (!error.response) {
-        message = 'Cannot reach the server. Please check if backend is running.';
+        message = 'Network connection failed. Please check your internet connection and retry.';
       } else if (error.response.status === 502 || error.response.status === 503 || error.response.status === 504) {
         message = 'Backend server is not running or unreachable (502 Bad Gateway).';
       } else if (error.response.data?.message) {
@@ -47,20 +76,6 @@ export const AuthProvider = ({ children }) => {
       return { success: false, error: message };
     }
   }, []);
-
-  const logout = useCallback(async () => {
-    try {
-      if (token) {
-        await authApi.logout();
-      }
-    } catch (error) {
-      console.warn('Backend session cleanup skipped or offline:', error.message);
-    } finally {
-      localStorage.removeItem('token');
-      setToken('');
-      setUser(null);
-    }
-  }, [token]);
 
   const contextValue = useMemo(() => ({ user, token, loading, login, logout }), [user, token, loading, login, logout]);
 

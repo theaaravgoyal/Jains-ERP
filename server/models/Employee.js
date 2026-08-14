@@ -40,7 +40,8 @@ const EmployeeSchema = new mongoose.Schema(
     },
     profilePicture: {
       type: String,
-      default: ''
+      default: '',
+      select: false
     },
     status: {
       type: String,

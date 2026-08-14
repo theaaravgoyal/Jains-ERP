@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import * as XLSX from 'xlsx';
 import { feesApi } from '../../../api/feesApi';
 
 /**
@@ -143,7 +142,7 @@ export const useReports = () => {
     fetchStudentLedger
   ]);
 
-  const exportExcel = (showToast, formatINR, formatDate) => {
+  const exportExcel = async (showToast, formatINR, formatDate) => {
     if (reportRows.length === 0 && !ledgerData) {
       showToast('No report rows available to export.', 'error');
       return;
@@ -206,6 +205,7 @@ export const useReports = () => {
       });
     }
 
+    const XLSX = await import('xlsx');
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Report Output');

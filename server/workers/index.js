@@ -1,13 +1,13 @@
+const { isRedisConfigured } = require('../config/redis');
+
 let allWorkers = [];
 
 /**
  * Initialize and verify all workers are running
  */
 const initWorkers = () => {
-  const isProd = process.env.NODE_ENV === 'production';
-  const hasRedis = !!(process.env.REDIS_URL || (process.env.REDIS_HOST && process.env.REDIS_HOST !== '127.0.0.1'));
-  if (isProd && !hasRedis) {
-    console.log('[BullMQ Workers] Running without standalone Redis queues.');
+  if (!isRedisConfigured()) {
+    console.log('[BullMQ Workers] Redis is not configured. Background workers disabled.');
     return [];
   }
 

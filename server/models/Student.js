@@ -161,6 +161,9 @@ StudentSchema.virtual('invoices', {
   foreignField: 'studentId',
 });
 
+// Database indexes for fast querying
+StudentSchema.index({ deletedAt: 1 });
+
 // Pre-save middleware to auto-generate a unique studentId if not provided (collision-free auto-increment counter)
 StudentSchema.pre('save', async function () {
   if (!this.studentId) {

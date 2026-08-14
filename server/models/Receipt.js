@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Counter = require('./Counter');
 
 /**
  * Receipt Schema - Represents a transaction receipt issued to a student upon successful payment.
@@ -85,21 +86,38 @@ ReceiptSchema.pre('save', async function () {
     const receiptPrefix = settingsDoc.fee?.receiptPrefix || 'RCP';
     const prefix = `${receiptPrefix}-${currentYear}-`;
     
-    // Find last receipt starting with this prefix
-    const lastReceipt = await mongoose.models.Receipt.findOne({
-      receiptNumber: new RegExp(`^${prefix}`)
-    }).sort({ receiptNumber: -1 });
+    // Find or seed counter
+    let counter = await Counter.findOne({ key: `receipt_counter_${receiptPrefix}_${currentYear}` });
+    if (!counter) {
+      // Find last receipt starting with this prefix
+      const lastReceipt = await mongoose.models.Receipt.findOne({
+        receiptNumber: new RegExp(`^${prefix}`)
+      }).sort({ receiptNumber: -1 });
 
-    let nextNum = 1;
-    if (lastReceipt && lastReceipt.receiptNumber) {
-      const parts = lastReceipt.receiptNumber.split('-');
-      const lastNum = parseInt(parts[2], 10);
-      if (!isNaN(lastNum)) {
-        nextNum = lastNum + 1;
+      let startVal = 0;
+      if (lastReceipt && lastReceipt.receiptNumber) {
+        const parts = lastReceipt.receiptNumber.split('-');
+        const lastNum = parseInt(parts[2], 10);
+        if (!isNaN(lastNum)) {
+          startVal = lastNum;
+        }
       }
+      
+      counter = await Counter.findOneAndUpdate(
+        { key: `receipt_counter_${receiptPrefix}_${currentYear}` },
+        { $setOnInsert: { value: startVal } },
+        { upsert: true, new: true, returnDocument: 'after' }
+      );
     }
     
-    const padded = String(nextNum).padStart(6, '0');
+    // Now increment atomically
+    counter = await Counter.findOneAndUpdate(
+      { key: `receipt_counter_${receiptPrefix}_${currentYear}` },
+      { $inc: { value: 1 } },
+      { returnDocument: 'after', new: true }
+    );
+    
+    const padded = String(counter.value).padStart(6, '0');
     this.receiptNumber = `${prefix}${padded}`;
   }
 });

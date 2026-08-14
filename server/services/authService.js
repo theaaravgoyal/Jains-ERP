@@ -113,15 +113,12 @@ class AuthService {
   }
 
   async authenticate(email, password) {
-    let user = null;
-    let isDbConnected = false;
-
-    try {
-      user = await userRepository.findByEmail(email, true);
-      isDbConnected = true;
-    } catch (dbError) {
-      console.warn('Database query failed in AuthService, checking memory fallbacks.', dbError.message);
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('Database is offline. Service Temporarily Unavailable.');
     }
+
+    const user = await userRepository.findByEmail(email, true);
 
     if (user) {
       // Validate account status
@@ -151,50 +148,53 @@ class AuthService {
       };
     }
 
-    // Mock Login Fallback (For instant testing and demo purposes)
-    const mockAccounts = {
-      'aadishjaindesign@gmail.com': { name: 'Aadish Jain', role: 'Super Admin', status: 'active' }
-    };
-
-    if (mockAccounts[email] && password === 'aadishjain') {
-      const mockProfile = mockAccounts[email];
-
-      if (mockProfile.status !== 'active') {
-        throw new Error('Your account is inactive. Please contact your system administrator.');
-      }
-
-      // Mock permissions list corresponding to the role
-      const mockPermissions = {
-        'Super Admin': [
-          { code: 'access_attendance', name: 'Attendance Access', route: '/attendance', module: 'Attendance Management', icon: 'ClipboardList' },
-          { code: 'access_fees', name: 'Fees Access', route: '/fees-management', module: 'Fees Management', icon: 'DollarSign' },
-          { code: 'access_leads', name: 'Lead Access', route: '/lead-management', module: 'Lead Management', icon: 'UserCheck' },
-          { code: 'access_certificates', name: 'Certificate Access', route: '/certificate-management', module: 'Certificate Management', icon: 'Award' }
-        ],
-        'Attendance Admin': [
-          { code: 'access_attendance', name: 'Attendance Access', route: '/attendance', module: 'Attendance Management', icon: 'ClipboardList' }
-        ],
-        'Fees Admin': [
-          { code: 'access_fees', name: 'Fees Access', route: '/fees-management', module: 'Fees Management', icon: 'DollarSign' }
-        ],
-        'Lead Admin': [
-          { code: 'access_leads', name: 'Lead Access', route: '/lead-management', module: 'Lead Management', icon: 'UserCheck' }
-        ]
+    // Mock Login Fallback (For instant testing and demo purposes, non-production only)
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (!isProduction) {
+      const mockAccounts = {
+        'aadishjaindesign@gmail.com': { name: 'Aadish Jain', role: 'Super Admin', status: 'active' }
       };
 
-      const permissions = mockPermissions[mockProfile.role] || [];
+      if (mockAccounts[email] && password === 'aadishjain') {
+        const mockProfile = mockAccounts[email];
 
-      return {
-        token: this.generateToken('mock-id-' + mockProfile.role.replace(' ', '-'), email),
-        user: {
-          id: 'mock-id-' + mockProfile.role.replace(' ', '-'),
-          name: mockProfile.name,
-          email: email,
-          role: mockProfile.role,
-          permissions,
-          status: mockProfile.status
+        if (mockProfile.status !== 'active') {
+          throw new Error('Your account is inactive. Please contact your system administrator.');
         }
-      };
+
+        // Mock permissions list corresponding to the role
+        const mockPermissions = {
+          'Super Admin': [
+            { code: 'access_attendance', name: 'Attendance Access', route: '/attendance', module: 'Attendance Management', icon: 'ClipboardList' },
+            { code: 'access_fees', name: 'Fees Access', route: '/fees-management', module: 'Fees Management', icon: 'DollarSign' },
+            { code: 'access_leads', name: 'Lead Access', route: '/lead-management', module: 'Lead Management', icon: 'UserCheck' },
+            { code: 'access_certificates', name: 'Certificate Access', route: '/certificate-management', module: 'Certificate Management', icon: 'Award' }
+          ],
+          'Attendance Admin': [
+            { code: 'access_attendance', name: 'Attendance Access', route: '/attendance', module: 'Attendance Management', icon: 'ClipboardList' }
+          ],
+          'Fees Admin': [
+            { code: 'access_fees', name: 'Fees Access', route: '/fees-management', module: 'Fees Management', icon: 'DollarSign' }
+          ],
+          'Lead Admin': [
+            { code: 'access_leads', name: 'Lead Access', route: '/lead-management', module: 'Lead Management', icon: 'UserCheck' }
+          ]
+        };
+
+        const permissions = mockPermissions[mockProfile.role] || [];
+
+        return {
+          token: this.generateToken('mock-id-' + mockProfile.role.replace(' ', '-'), email),
+          user: {
+            id: 'mock-id-' + mockProfile.role.replace(' ', '-'),
+            name: mockProfile.name,
+            email: email,
+            role: mockProfile.role,
+            permissions,
+            status: mockProfile.status
+          }
+        };
+      }
     }
 
     throw new Error('Invalid credentials');
@@ -203,16 +203,28 @@ class AuthService {
   async verifyUserToken(token) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_erp_key_12345');
     
-    let user = null;
+    // Fail fast if database is disconnected
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      const err = new Error('Database is offline. Service Temporarily Unavailable.');
+      err.statusCode = 503;
+      throw err;
+    }
+
+    let user;
     try {
       user = await userRepository.findById(decoded.id);
-    } catch (dbError) {
-      console.warn('Database query failed in AuthService verifyUserToken, using mock fallback decoding.');
+    } catch (dbErr) {
+      const err = new Error('Database query failed: ' + dbErr.message);
+      err.statusCode = 500;
+      throw err;
     }
 
     if (user) {
       if (user.status !== 'active') {
-        throw new Error('Your account is inactive. Access denied.');
+        const err = new Error('Your account is inactive. Access denied.');
+        err.statusCode = 403;
+        throw err;
       }
       const { roleName, permissions } = await this.resolveRoleAndPermissions(user);
       return {
@@ -225,11 +237,11 @@ class AuthService {
       };
     }
 
-    // Mock verification fallback
-    if (decoded.email) {
+    // Mock verification fallback (Allowed only in non-production environments)
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (!isProduction && decoded.email) {
       let matchedRole = 'Super Admin';
       if (decoded.email.includes('attendance')) matchedRole = 'Attendance Admin';
-      else if (decoded.email.includes('website')) matchedRole = 'Website Admin';
       else if (decoded.email.includes('fees')) matchedRole = 'Fees Admin';
       else if (decoded.email.includes('leads')) matchedRole = 'Lead Admin';
 
@@ -243,8 +255,6 @@ class AuthService {
         'Attendance Admin': [
           { code: 'access_attendance', name: 'Attendance Access', route: '/attendance', module: 'Attendance Management', icon: 'ClipboardList' }
         ],
-        'Website Admin': [
-        ],
         'Fees Admin': [
           { code: 'access_fees', name: 'Fees Access', route: '/fees-management', module: 'Fees Management', icon: 'DollarSign' }
         ],
@@ -255,7 +265,9 @@ class AuthService {
 
       const status = decoded.email.includes('inactive') ? 'inactive' : 'active';
       if (status !== 'active') {
-        throw new Error('Your account is inactive. Access denied.');
+        const err = new Error('Your account is inactive. Access denied.');
+        err.statusCode = 403;
+        throw err;
       }
 
       return {
@@ -268,7 +280,9 @@ class AuthService {
       };
     }
 
-    throw new Error('User not found');
+    const err = new Error('User not found');
+    err.statusCode = 401;
+    throw err;
   }
 
   async changePassword(userId, currentPassword, newPassword) {
@@ -283,15 +297,15 @@ class AuthService {
       throw new Error('New password must be different from your current password.');
     }
 
-    // Attempt DB lookup first
-    let user = null;
-    try {
-      // We need to select the password field for verification
-      const User = require('../models/User');
-      user = await User.findById(userId).select('+password');
-    } catch (dbError) {
-      console.warn('Database query failed in changePassword, falling back to mock response.');
+    // Fail fast if database is disconnected
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('Database is offline. Service Temporarily Unavailable.');
     }
+
+    // We need to select the password field for verification
+    const User = require('../models/User');
+    const user = await User.findById(userId).select('+password');
 
     if (user) {
       // Verify current password
@@ -307,14 +321,18 @@ class AuthService {
       return { message: 'Password changed successfully.' };
     }
 
-    // Mock fallback — no persistent storage, so we simply validate that
-    // the supplied "current password" matches the known mock password.
-    const MOCK_PASSWORD = 'admin123';
-    if (currentPassword !== MOCK_PASSWORD) {
-      throw new Error('Current password is incorrect.');
+    // Mock fallback — only in non-production environments
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (!isProduction) {
+      const MOCK_PASSWORD = 'admin123';
+      if (currentPassword !== MOCK_PASSWORD) {
+        throw new Error('Current password is incorrect.');
+      }
+
+      return { message: 'Password changed successfully.' };
     }
 
-    return { message: 'Password changed successfully.' };
+    throw new Error('User not found');
   }
 }
 

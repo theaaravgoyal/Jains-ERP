@@ -5,7 +5,6 @@ import {
   Calendar, Users, Clock, Search, Plus, User, AlertCircle, Edit2, FileSpreadsheet, Trash2, Eye,
   Bell, CheckCheck, RefreshCw, MapPin
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { adminAttendanceApi } from '../../../api/adminAttendanceApi';
 import { feesApi } from '../../../api/feesApi';
 import Card from '../../../components/Card';
@@ -686,7 +685,7 @@ export default function Attendance() {
   }, [reportData]);
 
   // Export to Excel
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (reportData.length === 0 || !reportEmployeeInfo) return;
     const selected = reportMonthsList.find(m => m.key === selectedReportMonthKey);
     const monthLabel = selected ? selected.label : 'Report';
@@ -700,6 +699,8 @@ export default function Attendance() {
       'Check-Out': day.checkOut,
       'Remarks': day.remarks
     }));
+
+    const XLSX = await import('xlsx');
 
     // Generate Sheet
     const worksheet = XLSX.utils.json_to_sheet(dataRows);

@@ -12,6 +12,15 @@ const employeeProtect = async (req, res, next) => {
       // Get token from header
       token = req.headers.authorization.split(' ')[1];
 
+      // Fail fast if database is disconnected
+      const mongoose = require('mongoose');
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({
+          success: false,
+          message: 'Database is offline. Service Temporarily Unavailable.'
+        });
+      }
+
       // Verify token
       let decoded;
       try {

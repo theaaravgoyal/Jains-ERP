@@ -42,6 +42,9 @@ class StudentService {
       studentId: newStudent._id
     });
 
+    const cacheHelper = require('../utils/cacheHelper');
+    cacheHelper.delByPattern('dashboard:*').catch(() => {});
+
     return newStudent;
   }
 
@@ -146,6 +149,9 @@ class StudentService {
       studentId: updatedStudent._id
     });
 
+    const cacheHelper = require('../utils/cacheHelper');
+    cacheHelper.delByPattern('dashboard:*').catch(() => {});
+
     return updatedStudent;
   }
 
@@ -169,6 +175,9 @@ class StudentService {
       performedBy: userId,
       studentId: student._id
     });
+
+    const cacheHelper = require('../utils/cacheHelper');
+    cacheHelper.delByPattern('dashboard:*').catch(() => {});
 
     return deletedStudent;
   }

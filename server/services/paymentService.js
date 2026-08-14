@@ -359,6 +359,10 @@ class PaymentService {
       await session.commitTransaction();
       session.endSession();
 
+      // Clear dashboard caches
+      const cacheHelper = require('../utils/cacheHelper');
+      cacheHelper.delByPattern('dashboard:*').catch(() => {});
+
       return await paymentRepository.findById(newPayment._id);
 
     } catch (error) {

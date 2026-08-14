@@ -142,6 +142,23 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Database connection validation middleware for API requests
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health' || req.path.startsWith('/uploads')) {
+    return next();
+  }
+  
+  const mongoose = require('mongoose');
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database is currently offline. Service Temporarily Unavailable.',
+      errors: ['Database connection is not active.']
+    });
+  }
+  next();
+});
+
 // Bull-Board Web UI Monitoring Dashboard
 const { serverAdapter } = require('./config/bullBoard');
 app.use('/admin/queues', serverAdapter.getRouter());

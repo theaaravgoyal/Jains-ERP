@@ -19,7 +19,7 @@ const protect = async (req, res, next) => {
       next();
     } catch (error) {
       console.error('Auth verification error:', error.message);
-      const status = error.message.includes('inactive') ? 403 : 401;
+      const status = error.statusCode || (error.message.includes('inactive') ? 403 : 401);
       return res.status(status).json({ success: false, message: error.message });
     }
   }

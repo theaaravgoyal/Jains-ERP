@@ -18,9 +18,9 @@ export const classifyApiError = (error) => {
 
   if (!error.response) {
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      return 'Request timed out. Please check your network connection.';
+      return 'Request timed out. Please check your network connection and retry.';
     }
-    return 'Unable to connect to the ERP server. Please verify your connection.';
+    return 'Network connection failed. Please check your internet connection and retry.';
   }
 
   const status = error.response.status;
@@ -34,7 +34,7 @@ export const classifyApiError = (error) => {
         : 'Too many requests. Please wait a moment and try again.');
     }
     case 401:
-      return serverMsg || 'Session expired. Please log in again.';
+      return serverMsg || 'Your session has expired. Please login again.';
     case 403:
       return serverMsg || 'You do not have permission to perform this action.';
     case 404:
@@ -42,9 +42,9 @@ export const classifyApiError = (error) => {
     case 502:
     case 503:
     case 504:
-      return 'ERP server is temporarily unavailable. Please try again shortly.';
+      return 'Server is temporarily unavailable. Please retry.';
     case 500:
-      return serverMsg || 'Internal server error. Please try again later.';
+      return serverMsg || 'Server error. Please try again.';
     default:
       return serverMsg || error.message || 'Request failed. Please try again.';
   }
@@ -95,6 +95,9 @@ axiosInstance.interceptors.response.use(
       // Only clear if on an authenticated user path, not a public login attempt
       if (!error.config?.url?.includes('/auth/login')) {
         localStorage.removeItem('token');
+        window.dispatchEvent(new CustomEvent('auth-unauthorized', {
+          detail: { url: error.config?.url }
+        }));
       }
     }
 

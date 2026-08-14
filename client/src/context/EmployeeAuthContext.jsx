@@ -8,6 +8,14 @@ export const EmployeeAuthProvider = ({ children }) => {
   const [employeeToken, setEmployeeToken] = useState(localStorage.getItem('employeeToken') || '');
   const [loading, setLoading] = useState(true);
 
+  const employeeLogout = useCallback((reason = 'user_initiated', endpoint = null, status = null) => {
+    console.log(`[AUTH] LOGOUT_TRIGGERED reason=${reason} endpoint=${endpoint} status=${status}`);
+    localStorage.removeItem('employeeToken');
+    localStorage.removeItem('employee');
+    setEmployeeToken('');
+    setEmployee(null);
+  }, []);
+
   useEffect(() => {
     const initializeEmployeeAuth = async () => {
       if (employeeToken) {
@@ -16,14 +24,28 @@ export const EmployeeAuthProvider = ({ children }) => {
           setEmployee(data.employee);
         } catch (error) {
           console.error('Employee authentication check failed:', error);
-          employeeLogout();
+          // Only logout if it is an explicit 401 Unauthorized from the server
+          if (error.response && error.response.status === 401) {
+            employeeLogout('token_verification_failed_401', '/employee/me', 401);
+          }
         }
       }
       setLoading(false);
     };
 
     initializeEmployeeAuth();
-  }, [employeeToken]);
+  }, [employeeToken, employeeLogout]);
+
+  useEffect(() => {
+    const handleUnauthorized = (e) => {
+      employeeLogout('token_unauthorized_event', e.detail?.url, 401);
+    };
+
+    window.addEventListener('employee-unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('employee-unauthorized', handleUnauthorized);
+    };
+  }, [employeeLogout]);
 
   const employeeLogin = useCallback(async (email, password) => {
     try {
@@ -39,7 +61,7 @@ export const EmployeeAuthProvider = ({ children }) => {
       console.error('Employee Login error:', error);
       let message = 'Invalid email or password.';
       if (!error.response) {
-        message = 'Cannot reach the server. Please check if backend is running.';
+        message = 'Network connection failed. Please check your internet connection and retry.';
       } else if (error.response.status === 502 || error.response.status === 503 || error.response.status === 504) {
         message = 'Backend server is not running or unreachable (502 Bad Gateway).';
       } else if (error.response.data?.message) {
@@ -47,13 +69,6 @@ export const EmployeeAuthProvider = ({ children }) => {
       }
       return { success: false, error: message };
     }
-  }, []);
-
-  const employeeLogout = useCallback(() => {
-    localStorage.removeItem('employeeToken');
-    localStorage.removeItem('employee');
-    setEmployeeToken('');
-    setEmployee(null);
   }, []);
 
   const contextValue = useMemo(() => ({

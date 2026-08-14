@@ -206,14 +206,25 @@ class AuthService {
     // Fail fast if database is disconnected
     const mongoose = require('mongoose');
     if (mongoose.connection.readyState !== 1) {
-      throw new Error('Database is offline. Service Temporarily Unavailable.');
+      const err = new Error('Database is offline. Service Temporarily Unavailable.');
+      err.statusCode = 503;
+      throw err;
     }
 
-    const user = await userRepository.findById(decoded.id);
+    let user;
+    try {
+      user = await userRepository.findById(decoded.id);
+    } catch (dbErr) {
+      const err = new Error('Database query failed: ' + dbErr.message);
+      err.statusCode = 500;
+      throw err;
+    }
 
     if (user) {
       if (user.status !== 'active') {
-        throw new Error('Your account is inactive. Access denied.');
+        const err = new Error('Your account is inactive. Access denied.');
+        err.statusCode = 403;
+        throw err;
       }
       const { roleName, permissions } = await this.resolveRoleAndPermissions(user);
       return {
@@ -254,7 +265,9 @@ class AuthService {
 
       const status = decoded.email.includes('inactive') ? 'inactive' : 'active';
       if (status !== 'active') {
-        throw new Error('Your account is inactive. Access denied.');
+        const err = new Error('Your account is inactive. Access denied.');
+        err.statusCode = 403;
+        throw err;
       }
 
       return {
@@ -267,7 +280,9 @@ class AuthService {
       };
     }
 
-    throw new Error('User not found');
+    const err = new Error('User not found');
+    err.statusCode = 401;
+    throw err;
   }
 
   async changePassword(userId, currentPassword, newPassword) {

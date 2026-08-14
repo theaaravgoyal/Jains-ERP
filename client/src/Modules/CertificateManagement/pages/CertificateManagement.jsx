@@ -341,7 +341,7 @@ export default function CertificateManagement() {
           <p className="text-xs text-slate-500 mb-6 font-semibold">Declare and sign student graduation credential information in registry.</p>
 
           <form onSubmit={handleAddCertificate} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="flex flex-wrap gap-5">
               
               {/* Student Name */}
               <div className="space-y-1.5 flex flex-col">

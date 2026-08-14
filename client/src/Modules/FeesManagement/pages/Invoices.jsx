@@ -355,7 +355,7 @@ const Invoices = () => {
               <div className="h-px bg-slate-100" />
 
               {/* Bill to Section */}
-              <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
+              <div className="flex gap-4 text-xs font-semibold">
                 <div className="space-y-1 bg-[#FAF9F6]/50 p-4 border border-[#EBEAE6] rounded-2xl">
                   <span className="text-[9px] uppercase tracking-wide text-slate-400 font-extrabold">Bill To Student:</span>
                   <div className="text-slate-800 font-bold">{activeInvoice.studentId?.fullName || 'N/A'}</div>
@@ -449,7 +449,7 @@ const Invoices = () => {
               )}
 
               {/* Terms and Sign block */}
-              <div className="grid grid-cols-2 gap-6 pt-2">
+              <div className="flex gap-6 pt-2">
                 <div className="space-y-1">
                   <span className="text-[9px] uppercase tracking-wide text-slate-400 font-extrabold">Terms & Conditions:</span>
                   <p className="text-[9px] text-slate-400 font-medium leading-relaxed">

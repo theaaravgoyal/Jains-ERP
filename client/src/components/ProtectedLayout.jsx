@@ -31,22 +31,20 @@ const ProtectedLayout = ({ children }) => {
   return (
     // Full-screen container with clean white background
     <div className="min-h-screen bg-white text-slate-700 font-sans">
-      
-      {/* Floating sidebar — fixed, floats over the background seamlessly */}
-      <Sidebar />
 
       {/* Full-width column — pl offsets content from behind the sidebar.
           The background continues edge-to-edge so there is no hard cut. */}
       <div className="flex flex-col min-h-screen">
         <Navbar />
 
-        <main className="flex-1 flex flex-col justify-between overflow-y-auto">
-          <div className="p-6 md:p-10 self-end w-[95vw]">
+        <main className="flex-1 flex flex-col justify-between overflow-y-auto pl-[5.5rem]">
+          <Sidebar />
+          <div className="p-6 md:p-10 w-full">
             {children}
           </div>
 
           {/* Shared Enterprise Footer */}
-          <footer className="py-[2vh] px-8 bg-slate-50 border-t w-full border-slate-200 text-center text-xs text-slate-400 mt-auto">
+          <footer className="py-3 px-8 bg-slate-50 border-t w-full border-slate-200 text-center text-xs text-slate-400 mt-auto">
             <p>&copy; {new Date().getFullYear()} ERP Portal. All rights reserved. Scalable Enterprise Edition.</p>
           </footer>
         </main>

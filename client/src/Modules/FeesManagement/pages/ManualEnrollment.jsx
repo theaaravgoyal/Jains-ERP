@@ -348,10 +348,10 @@ const ManualEnrollment = ({ onNavigate }) => {
 
       {error && <ErrorState message={error} />}
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs font-bold text-slate-655">
+      <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6 text-xs font-bold text-slate-655">
         
         {/* Left Columns: Form Fields (Spans 2/3) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:flex-[2] min-w-0 space-y-6">
           
           {/* Section 1: Personal Information */}
           <div className="bg-white border border-[#EBEAE6] rounded-2xl p-5 shadow-sm space-y-4">
@@ -360,7 +360,7 @@ const ManualEnrollment = ({ onNavigate }) => {
               <span>Personal Details</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-wrap gap-4">
               <div className="space-y-1">
                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Student Name *</label>
                 <input 
@@ -477,7 +477,7 @@ const ManualEnrollment = ({ onNavigate }) => {
             )}
 
             {/* Roll No and Class Section */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#FAF9F6]">
+            <div className="flex flex-wrap gap-4 pt-2 border-t border-[#FAF9F6]">
               <div className="space-y-1">
                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Roll / Reg No</label>
                 <input 
@@ -511,7 +511,7 @@ const ManualEnrollment = ({ onNavigate }) => {
               <span>Billing Fees Structures</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="flex flex-wrap gap-4">
               <div className="space-y-1">
                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Total Fees Base (₹) *</label>
                 <input 
@@ -552,7 +552,7 @@ const ManualEnrollment = ({ onNavigate }) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+            <div className="flex flex-wrap gap-4 pt-2">
               <div className="space-y-1">
                 <label className="block text-[10px] uppercase text-slate-400 font-bold">Plan Classification</label>
                 <select 

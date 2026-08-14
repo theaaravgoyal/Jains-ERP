@@ -394,7 +394,7 @@ export default function LeadDetails({ lead, onClose, onUpdateStatus, onDeleteLea
           🛡️ Lead Metadata
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-[#EBEAE6] pb-4">
+        <div className="flex flex-col md:flex-row gap-4 border-b border-[#EBEAE6] pb-4">
           <div>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide block">Phone Number</span>
             <strong className="text-xs text-slate-800 font-mono tracking-wide mt-1 block">{lead.phone}</strong>

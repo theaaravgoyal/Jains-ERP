@@ -29,7 +29,7 @@ export const TableSkeleton = ({ rows = 5, cols = 4 }) => {
  */
 export const CardSkeleton = ({ count = 3 }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="flex flex-wrap gap-4">
       {Array.from({ length: count }).map((_, idx) => (
         <div key={idx} className="bg-white border border-[#EBEAE6] p-4 rounded-2xl space-y-3 animate-pulse">
           <div className="flex justify-between">
@@ -58,7 +58,7 @@ export const DetailSkeleton = () => {
         </div>
       </div>
       <div className="h-px bg-slate-100" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="flex flex-wrap gap-4">
         <div className="space-y-2">
           <div className="h-3 bg-slate-50 rounded w-1/3" />
           <div className="h-4 bg-slate-100 rounded w-3/4" />

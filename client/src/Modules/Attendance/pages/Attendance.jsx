@@ -955,10 +955,10 @@ export default function Attendance() {
         </Card>
       ) : (
         /* Main Layout Grid matching the screenshot */
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
           
           {/* LEFT 3 COLUMNS: Chart, Approvals, Profile Quick Card */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:flex-[3] min-w-0 space-y-6">
             
             {/* 1. Bar Chart Card */}
             <Card className="bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs">
@@ -1056,10 +1056,10 @@ export default function Attendance() {
             </Card>
 
             {/* 2. Side-By-Side Bottom Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex flex-col md:flex-row gap-6">
               
               {/* Table Card (Spans 2/3) */}
-              <Card className="md:col-span-2 bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+              <Card className="md:flex-[2] min-w-0 bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-[#FAF9F6]">
                     <div className="flex gap-5">
@@ -1446,7 +1446,7 @@ export default function Attendance() {
             </div>
           </div>
           {/* RIGHT SIDEBAR COLUMN: Checked-in logs */}
-          <div className="lg:col-span-1 bg-white border border-[#E8E6E1] rounded-3xl p-5 shadow-xs space-y-4">
+          <div className="lg:flex-1 bg-white border border-[#E8E6E1] rounded-3xl p-5 shadow-xs space-y-4">
             
             {/* Sidebar Tabs */}
             <div className="flex bg-[#FAF9F6] border border-[#E8E6E1] p-1 rounded-xl text-[10px] font-bold text-slate-500 select-none">
@@ -1599,7 +1599,7 @@ export default function Attendance() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-wrap gap-3">
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">First Name</label>
                   <input
@@ -1625,7 +1625,7 @@ export default function Attendance() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-wrap gap-3">
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Department</label>
                   <input
@@ -1774,7 +1774,7 @@ export default function Attendance() {
                 </label>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-wrap gap-3">
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">First Name</label>
                   <input
@@ -1800,7 +1800,7 @@ export default function Attendance() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-wrap gap-3">
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Department</label>
                   <input
@@ -1963,7 +1963,7 @@ export default function Attendance() {
               ) : (
                 <>
                   {/* Stats Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                  <div className="flex flex-wrap gap-2.5">
                     <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl text-center">
                       <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider block">Presents</span>
                       <strong className="text-emerald-700 text-base font-black mt-1 block">{reportStats.presents}</strong>
@@ -2284,7 +2284,7 @@ export default function Attendance() {
             </div>
 
             {/* Duration & Status Info */}
-            <div className="grid grid-cols-2 gap-3 bg-[#FAF9F6] p-3.5 rounded-2xl border border-[#E8E6E1] text-xs">
+            <div className="flex flex-wrap gap-3 bg-[#FAF9F6] p-3.5 rounded-2xl border border-[#E8E6E1] text-xs">
               <div>
                 <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Duration</span>
                 <span className="font-bold text-slate-800 text-[11px]">
@@ -2406,7 +2406,7 @@ export default function Attendance() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-wrap gap-4">
                 {/* Office Start Time */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
@@ -2471,7 +2471,7 @@ export default function Attendance() {
                 </div>
 
                 {/* Monthly Paid Leaves Quota */}
-                <div className="space-y-1 sm:col-span-2">
+                <div className="space-y-1 w-full">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
                     Monthly Paid Leaves Quota (per employee)
                   </label>
@@ -2490,7 +2490,7 @@ export default function Attendance() {
                 </div>
 
                 {/* Geofencing Config */}
-                <div className="space-y-1 sm:col-span-2 pt-2.5 border-t border-[#EBEAE6]">
+                <div className="space-y-1 w-full pt-2.5 border-t border-[#EBEAE6]">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -2510,7 +2510,7 @@ export default function Attendance() {
 
                 {timingFormData.geofencingEnabled && (
                   <>
-                    <div className="sm:col-span-2 flex justify-end">
+                    <div className="w-full flex justify-end">
                       <button
                         type="button"
                         onClick={async () => {
@@ -2567,7 +2567,7 @@ export default function Attendance() {
                       />
                     </div>
 
-                    <div className="space-y-1 sm:col-span-2">
+                    <div className="space-y-1 w-full">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
                         Allowed Radius (meters)
                       </label>
@@ -2651,7 +2651,7 @@ export default function Attendance() {
             )}
 
             <form onSubmit={handleSaveLeaveEdit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="flex flex-wrap gap-3.5">
                 
                 {/* Start Date */}
                 <div className="space-y-1">
@@ -2717,7 +2717,7 @@ export default function Attendance() {
                 </div>
 
                 {/* Admin Remarks */}
-                <div className="space-y-1 sm:col-span-2">
+                <div className="space-y-1 w-full">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
                     Admin Note / Instructions (Visible to Employee)
                   </label>

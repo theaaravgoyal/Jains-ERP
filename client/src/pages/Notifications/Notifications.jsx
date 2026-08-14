@@ -241,7 +241,7 @@ const Notifications = () => {
         </div>
 
         {/* Filters Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold text-slate-650">
+        <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-650">
           
           <div className="space-y-1">
             <span className="text-[10px] text-slate-450 uppercase block font-extrabold">Filter by Module</span>

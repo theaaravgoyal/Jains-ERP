@@ -28,21 +28,13 @@ const Sidebar = () => {
         border border-slate-200
         rounded-2xl
         shadow-xl shadow-slate-100/50
-        px-2 py-4
-        w-[68px]
-        h-[80vh]
+        px-5 py-5
+        w-[4.25rem]
+        h-[min(70vh,37.5rem)]
       "
     >
-      {/* Logo mark */}
-      <Link to={ROUTES.DASHBOARD} className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-3 shadow-sm shadow-slate-200/30 shrink-0">
-        <img src="/logo.png" alt="JCMS" className="h-5 w-5 object-contain" />
-      </Link>
-
-      {/* Divider */}
-      <div className="w-8 h-px bg-slate-200 mb-2" />
-
       {/* Nav items */}
-      <nav className="flex flex-col items-center w-full gap-3 flex-1 pb-2">
+      <nav className="flex flex-col items-center w-full gap-5 flex-1 pb-2">
         {navItems.map(({ name, path, Icon }) => {
           const isActive = location.pathname === path;
           return (
@@ -52,7 +44,7 @@ const Sidebar = () => {
               title={name}
               className={`
                 relative group flex flex-col items-center justify-center
-                w-12 h-12 rounded-xl shrink-0
+                w-9 h-9 rounded-xl shrink-0
                 transition-all duration-200
                 ${name === 'Settings' ? 'mt-auto' : ''}
                 ${isActive

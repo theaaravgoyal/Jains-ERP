@@ -375,7 +375,7 @@ const Students = ({ onNavigate, setSelectedStudentId }) => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}

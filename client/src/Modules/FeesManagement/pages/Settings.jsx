@@ -275,7 +275,7 @@ const Settings = () => {
             </div>
 
             {/* Category Subform Renderers */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs font-bold text-slate-655">
+            <div className="flex flex-wrap gap-5 text-xs font-bold text-slate-655">
               {activeCategory === 'institute' && (
                 <>
                   <div className="space-y-1">
@@ -304,7 +304,7 @@ const Settings = () => {
                       </label>
                     </div>
                   </div>
-                  <div className="space-y-1 md:col-span-2">
+                  <div className="space-y-1 w-full">
                     <label className="block text-[10px] uppercase text-slate-400 font-bold">Address</label>
                     <input 
                       type="text" 
@@ -438,7 +438,7 @@ const Settings = () => {
 
               {activeCategory === 'receipt' && (
                 <>
-                  <div className="space-y-1 md:col-span-2">
+                  <div className="space-y-1 w-full">
                     <label className="block text-[10px] uppercase text-slate-400 font-bold">Receipt Header Text</label>
                     <input 
                       type="text" 
@@ -447,7 +447,7 @@ const Settings = () => {
                       className="w-full px-3 py-2 border border-[#DEDCD8] rounded-xl font-semibold outline-none focus:border-amber-400"
                     />
                   </div>
-                  <div className="space-y-1 md:col-span-2">
+                  <div className="space-y-1 w-full">
                     <label className="block text-[10px] uppercase text-slate-400 font-bold">Receipt Footer / Note</label>
                     <textarea 
                       value={formData.receipt.receiptFooter} 
@@ -490,7 +490,7 @@ const Settings = () => {
 
               {activeCategory === 'invoice' && (
                 <>
-                  <div className="space-y-1 md:col-span-2">
+                  <div className="space-y-1 w-full">
                     <label className="block text-[10px] uppercase text-slate-400 font-bold">Invoice Header title</label>
                     <input 
                       type="text" 
@@ -499,7 +499,7 @@ const Settings = () => {
                       className="w-full px-3 py-2 border border-[#DEDCD8] rounded-xl font-semibold outline-none focus:border-amber-400"
                     />
                   </div>
-                  <div className="space-y-1 md:col-span-2">
+                  <div className="space-y-1 w-full">
                     <label className="block text-[10px] uppercase text-slate-400 font-bold">Invoice Terms & Conditions</label>
                     <textarea 
                       value={formData.invoice.termsAndConditions} 

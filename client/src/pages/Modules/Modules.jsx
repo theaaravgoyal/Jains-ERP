@@ -74,7 +74,7 @@ const Modules = () => {
             <p className="text-slate-400 font-medium">No permitted modules found for your role profile.</p>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full px-4">
+          <div className="flex flex-nowrap gap-6 h-full w-full px-4">
             {permittedModules.map((mod, index) => {
               const scheme = colorSchemes[mod.code] || defaultColorScheme;
               const desc = descriptions[mod.code] || defaultDescription;
@@ -89,7 +89,7 @@ const Modules = () => {
                   key={index}
                   onClick={() => navigate(mod.route)}
                   style={gradientStyle}
-                  className={`relative overflow-hidden flex flex-col justify-between p-6 rounded-[28px] border ${scheme.border} ${scheme.shadow} h-[500px] cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl active:scale-98 group`}
+                  className={`relative overflow-hidden flex flex-col justify-between p-6 rounded-[28px] border ${scheme.border} ${scheme.shadow} h-[55vh] cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl active:scale-98 group`}
                 >
                   {/* Top Block: Status and Icon */}
                   <div className="flex justify-between items-start w-full">

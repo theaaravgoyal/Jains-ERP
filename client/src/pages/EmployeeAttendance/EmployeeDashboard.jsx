@@ -761,7 +761,7 @@ export default function EmployeeDashboard() {
               )}
 
               {/* 2x2 Log & Operation Grid */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-3.5 pt-1 sm:pt-2">
+              <div className="flex flex-wrap gap-2 sm:gap-3.5 pt-1 sm:pt-2">
                 {/* 1. Day In Log */}
                 <div className="bg-white border border-[#E8E6E1] p-3 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col justify-between h-20 sm:h-24 shadow-xs">
                   <span className="text-[10px] sm:text-xs text-slate-400 font-black uppercase tracking-wider flex items-center gap-1.5">
@@ -844,7 +844,7 @@ export default function EmployeeDashboard() {
               </div>
 
               {/* Monthly Summary Statistics */}
-              <div className="grid grid-cols-3 gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100 text-center shadow-xs">
+              <div className="flex gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100 text-center shadow-xs">
                 <div className="flex flex-col items-center">
                   <span className="flex items-center gap-1 text-[9px] text-slate-400 font-black uppercase tracking-wider">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Presents
@@ -940,7 +940,7 @@ export default function EmployeeDashboard() {
                   </div>
 
                   {selectedDayDetails.log ? (
-                    <div className="grid grid-cols-2 gap-4 text-xs pt-1">
+                    <div className="flex flex-wrap gap-4 text-xs pt-1">
                       <div>
                         <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider block">Punch In</span>
                         <strong className="text-slate-800 text-sm font-extrabold mt-0.5 block">
@@ -973,7 +973,7 @@ export default function EmployeeDashboard() {
                 <p className="text-[10px] text-slate-450 font-semibold">Select an available employee service below.</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="flex flex-wrap gap-3.5">
                 {/* 1. Leave Request Card (Interactive) */}
                 <div 
                   onClick={() => setActiveTab('Leaves')}
@@ -1075,7 +1075,7 @@ export default function EmployeeDashboard() {
                     </div>
 
                     {/* Date Inputs Grid */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-wrap gap-3">
                       <div>
                         <DatePicker
                           label="Start Date"
@@ -1143,7 +1143,7 @@ export default function EmployeeDashboard() {
                         {leaveQuotaInfo?.monthlyQuota ?? 2} Paid / Month
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-white/20">
+                    <div className="flex gap-2 text-center pt-1 border-t border-white/20">
                       <div className="bg-white/10 p-2 rounded-xl">
                         <span className="text-[8px] font-extrabold uppercase text-emerald-100 block">Available</span>
                         <strong className="text-base font-black leading-tight block">{leaveQuotaInfo?.paidLeavesRemaining ?? 2}</strong>
@@ -1406,7 +1406,7 @@ export default function EmployeeDashboard() {
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <div className="space-y-1">
                       <label className="text-[9px] font-black text-slate-455 uppercase tracking-wide">First Name</label>
                       <input 

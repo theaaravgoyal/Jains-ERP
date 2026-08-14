@@ -66,7 +66,7 @@ const ConfirmationDialog = ({
         </p>
 
         {/* Actions Button Grid */}
-        <div className="grid grid-cols-2 gap-2.5 pt-2">
+        <div className="flex gap-2.5 pt-2">
           <button
             onClick={onClose}
             className="w-full py-2 border border-[#DEDCD8] bg-white text-slate-600 hover:bg-[#FAF9F6] rounded-xl text-[11px] font-bold transition-all cursor-pointer outline-none"

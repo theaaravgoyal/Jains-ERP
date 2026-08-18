@@ -126,7 +126,7 @@ const seedDefaultAuthData = async () => {
         if (typeof u.role === 'string') {
           const lower = u.role.toLowerCase();
           if (lower.includes('attendance')) assignedRole = roles['Attendance Admin'];
-          else if (lower.includes('website')) assignedRole = roles['Website Admin'];
+          else if (lower.includes('website')) assignedRole = roles['Lead Admin'];
           else if (lower.includes('fee')) assignedRole = roles['Fees Admin'];
           else if (lower.includes('lead')) assignedRole = roles['Lead Admin'];
           else assignedRole = roles['Super Admin'];
@@ -176,6 +176,32 @@ const connectDB = async () => {
 
     // Seed default auth and RBAC data
     await seedDefaultAuthData();
+
+    // Sanitize only extremely large base64 profile pictures (>5MB) left over from old uploads.
+    // File-path URLs (starting with /uploads/) are never touched.
+    try {
+      const Employee = require('../models/Employee');
+      const result = await Employee.updateMany(
+        { 
+          $expr: { 
+            $and: [
+              { $ne: ["$profilePicture", null] },
+              { $ne: ["$profilePicture", ""] },
+              // Only target raw base64 data URIs (not file URL paths)
+              { $not: { $regexMatch: { input: { $ifNull: ["$profilePicture", ""] }, regex: "^/uploads/" } } },
+              // Only clear if the base64 string is unreasonably large (>5MB = ~6.8M chars)
+              { $gt: [{ $strLenCP: { $ifNull: ["$profilePicture", ""] } }, 5000000] }
+            ]
+          } 
+        }, 
+        { $set: { profilePicture: "" } }
+      );
+      if (result.modifiedCount > 0) {
+        console.log(`[Database Sanitize] Cleared ${result.modifiedCount} oversized (>5MB) base64 profile picture(s) to restore performance.`);
+      }
+    } catch (sanitizeErr) {
+      console.error('[Database Sanitize Warning] Failed to sanitize oversized profile pictures:', sanitizeErr.message);
+    }
 
     // Seed default departments if none exist
     try {

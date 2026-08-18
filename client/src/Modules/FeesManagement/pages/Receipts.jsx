@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Eye, Printer, X, RefreshCw, GraduationCap } from 'lucide-react';
+import { Eye, Printer, X, RefreshCw } from 'lucide-react';
 import { useSystemSettings } from '../context/SettingsContext';
 import { feesApi } from '../../../api/feesApi';
 import CommonTable from '../components/CommonTable';
@@ -313,25 +313,14 @@ const Receipts = () => {
               {/* Receipt Header block */}
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
-                  {settings?.receipt?.showLogo && (
-                    <div className="mb-2">
-                      {settings?.institute?.logo && settings.institute.logo.startsWith('http') ? (
-                        <img 
-                          src={settings.institute.logo} 
-                          alt="Logo" 
-                          className="h-10 w-auto object-contain" 
-                        />
-                      ) : (
-                        <div className="h-10 w-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-md shadow-amber-500/10">
-                          <GraduationCap size={22} className="stroke-[2.5]" />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <h2 className="text-base font-extrabold text-slate-900 mt-1">
-                    {settings?.institute?.name || 'Jains Computer'}
-                  </h2>
-                  <p className="text-[10px] text-slate-450 leading-normal max-w-[250px]">
+                  <div className="mb-2">
+                    <img
+                      src="/jains.svg"
+                      alt="Jains Computer"
+                      className="h-9 w-auto object-contain"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-550 font-semibold leading-normal max-w-[250px]">
                     {settings?.institute?.address || '13, Shivpuri Colony, Main Kalwar Road, Jhotwara'}, {settings?.institute?.city || 'Jaipur'}, {settings?.institute?.state || 'Rajasthan'} - {settings?.institute?.pincode || '302012'}
                   </p>
                 </div>
@@ -356,7 +345,7 @@ const Receipts = () => {
                   <span className="text-[9px] uppercase tracking-wide text-slate-400 font-extrabold">Collection Mode:</span>
                   <div>Year FY: <span className="text-slate-800 font-bold">{settings?.fee?.financialYear || '2026-2027'}</span></div>
                   <div>Payment Mode: <span className="text-slate-850 font-bold">{activeReceipt.paymentMode}</span></div>
-                  <div>Audit status: <span className="text-emerald-600 font-extrabold">Sync Active</span></div>
+                  <div>Audit status: <span className="text-emerald-600 font-extrabold">Paid</span></div>
                 </div>
               </div>
 
@@ -372,7 +361,7 @@ const Receipts = () => {
                   <tbody>
                     <tr className="font-semibold text-slate-655">
                       <td className="px-4 py-3">
-                        ERP Fee Payment Receipt (Voucher collection item: Class {activeReceipt.studentId?.course || 'N/A'})
+                        Payment - {activeReceipt.studentId?.course || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-right font-extrabold text-slate-800">{formatINR(activeReceipt.amount)}</td>
                     </tr>
@@ -391,10 +380,9 @@ const Receipts = () => {
                 <div className="flex flex-col items-center justify-end text-center space-y-1">
                   <div className="h-12 flex items-center justify-center">
                     <img 
-                      src="/AuthSingh.jpeg" 
+                      src="/Sanmati Sir Signature Black.png" 
                       alt="Authorized Signatory" 
                       className="max-h-12 w-auto object-contain"
-                      style={{ filter: 'brightness(0)' }}
                     />
                   </div>
                   <div className="h-px bg-slate-400 w-36 mx-auto" />

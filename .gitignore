@@ -24,3 +24,9 @@ server/.env
 
 .DS_Store
 *.local
+
+# Scratch/test scripts (dev-only, not for production)
+server/scratch/
+
+# Uploaded files (runtime-generated, not for version control)
+server/uploads/

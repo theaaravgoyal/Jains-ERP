@@ -1,6 +1,8 @@
 const Employee = require('../../models/Employee');
 const jwt = require('jsonwebtoken');
 const Notification = require('../../models/Notification');
+const path = require('path');
+const fs = require('fs');
 
 // Generate JWT
 const generateToken = (id, email) => {
@@ -46,8 +48,14 @@ exports.registerEmployee = async (req, res, next) => {
     await Notification.create({
       isAdmin: true,
       senderName: `${employee.name} ${employee.lastName}`,
-      message: `New employee registration request from ${employee.name} ${employee.lastName} (${employee.email})`,
-      type: 'new_registration'
+      title: 'New Employee Request',
+      message: `New employee registration request received from ${employee.name} ${employee.lastName}. Status: Pending`,
+      type: 'new_registration',
+      module: 'Attendance',
+      priority: 'HIGH',
+      referenceId: employee._id,
+      referenceType: 'Employee',
+      actionUrl: '/attendance'
     });
 
     return res.status(201).json({
@@ -195,6 +203,55 @@ exports.updateEmployeeProfile = async (req, res, next) => {
         department: employee.department || '',
         designation: employee.designation || 'Employee',
         profilePicture: employee.profilePicture || ''
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Upload employee profile picture (multipart/form-data)
+// @route   POST /api/employee/me/upload-picture
+// @access  Private
+exports.uploadProfilePicture = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No image file provided.' });
+    }
+
+    const employee = await Employee.findById(req.employee._id).select('+profilePicture');
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found.' });
+    }
+
+    // Delete old profile picture file from disk if it was a local upload
+    if (employee.profilePicture && employee.profilePicture.startsWith('/uploads/')) {
+      const oldFilePath = path.join(__dirname, '../../', employee.profilePicture);
+      if (fs.existsSync(oldFilePath)) {
+        fs.unlink(oldFilePath, (err) => {
+          if (err) console.warn('[Upload] Failed to delete old profile picture:', err.message);
+        });
+      }
+    }
+
+    // Save relative URL path in DB (e.g. /uploads/profile-pictures/abc123.jpg)
+    const relativeUrl = `/uploads/profile-pictures/${req.file.filename}`;
+    employee.profilePicture = relativeUrl;
+    await employee.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile picture updated successfully.',
+      profilePicture: relativeUrl,
+      employee: {
+        id: employee._id,
+        name: employee.name,
+        lastName: employee.lastName,
+        email: employee.email,
+        phone: employee.phone,
+        department: employee.department || '',
+        designation: employee.designation || 'Employee',
+        profilePicture: relativeUrl
       }
     });
   } catch (err) {

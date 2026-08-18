@@ -121,7 +121,9 @@ function App() {
           path={ROUTES.LEAD_MANAGEMENT}
           element={
             <ProtectedRoute requiredPermission={PERMISSIONS.ACCESS_LEADS}>
-              <LeadDashboard />
+              <ProtectedLayout>
+                <LeadDashboard />
+              </ProtectedLayout>
             </ProtectedRoute>
           }
         />

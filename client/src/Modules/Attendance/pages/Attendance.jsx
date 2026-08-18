@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Check, X, ShieldAlert, Sparkles, 
   Calendar, Users, Clock, Search, Plus, User, AlertCircle, Edit2, FileSpreadsheet, Trash2, Eye,
-  Bell, CheckCheck, RefreshCw, MapPin
+  Bell, CheckCheck, RefreshCw, MapPin, Info
 } from 'lucide-react';
 import { adminAttendanceApi } from '../../../api/adminAttendanceApi';
 import { feesApi } from '../../../api/feesApi';
@@ -11,6 +11,39 @@ import Card from '../../../components/Card';
 import Button from '../../../components/Button';
 import { formatDate } from '../../../utils/dateUtils';
 import DatePicker from '../../FeesManagement/components/DatePicker';
+
+const compressImage = (base64Str, maxWidth = 150, maxHeight = 150) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => {
+      resolve(base64Str);
+    };
+  });
+};
 
 export default function Attendance() {
   const navigate = useNavigate();
@@ -22,6 +55,8 @@ export default function Attendance() {
   const [chartStats, setChartStats] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'all_employees'
+  const [employeePage, setEmployeePage] = useState(1);
+  const [leavePage, setLeavePage] = useState(1);
   const [selectedLeave, setSelectedLeave] = useState(null);
   
   // UI States
@@ -64,6 +99,16 @@ export default function Attendance() {
   const [editFormPassword, setEditFormPassword] = useState('');
   const [editFormProfilePicture, setEditFormProfilePicture] = useState('');
   const [editFormError, setEditFormError] = useState('');
+
+  // Employee Specific Timing Modal States
+  const [showEmployeeTimingModal, setShowEmployeeTimingModal] = useState(false);
+  const [timingEmployeeId, setTimingEmployeeId] = useState('');
+  const [timingEmployeeName, setTimingEmployeeName] = useState('');
+  const [timingEnabled, setTimingEnabled] = useState(false);
+  const [timingStartTime, setTimingStartTime] = useState('');
+  const [timingEndTime, setTimingEndTime] = useState('');
+  const [timingLateAfter, setTimingLateAfter] = useState('');
+  const [timingHalfDayHours, setTimingHalfDayHours] = useState(4);
 
   // Admin Edit Leave Modal States
   const [showEditLeaveModal, setShowEditLeaveModal] = useState(false);
@@ -432,6 +477,44 @@ export default function Attendance() {
     setShowEditModal(true);
   };
 
+  const handleOpenEmployeeTimingModal = (emp) => {
+    setTimingEmployeeId(emp._id || emp.id);
+    setTimingEmployeeName(emp.name ? `${emp.name} ${emp.lastName || ''}` : '');
+    
+    // Check if employee has a schedule
+    const schedule = emp.attendanceSchedule || {};
+    setTimingEnabled(schedule.enabled || false);
+    
+    // Set to schedule values or fallback to global values (for UI display)
+    setTimingStartTime(schedule.startTime || attendanceSettings.officeStartTime || '');
+    setTimingEndTime(schedule.endTime || attendanceSettings.officeEndTime || '');
+    setTimingLateAfter(schedule.lateAfter || attendanceSettings.lateThresholdTime || '');
+    setTimingHalfDayHours(schedule.halfDayHours || attendanceSettings.halfDayThresholdHours || 4);
+    
+    setShowEmployeeTimingModal(true);
+  };
+
+  const handleUpdateEmployeeTiming = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    try {
+      await adminAttendanceApi.updateEmployeeTiming(timingEmployeeId, {
+        enabled: timingEnabled,
+        startTime: timingStartTime,
+        endTime: timingEndTime,
+        lateAfter: timingLateAfter,
+        halfDayHours: timingHalfDayHours
+      });
+      fetchData(true); // silent refresh
+      setShowEmployeeTimingModal(false);
+    } catch (err) {
+      console.error('Failed to update employee timing:', err);
+      alert('Failed to update employee timing. Check console for details.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleUpdateEmployee = async (e) => {
     e.preventDefault();
     setEditFormError('');
@@ -760,6 +843,25 @@ export default function Attendance() {
     return maxVal > 0 ? maxVal * 1.2 : 120;
   }, [chartStats]);
 
+  const leaveSummaryThisMonth = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    const leavesThisMonth = leaveRequests.filter(l => {
+      if (!l.startDate) return false;
+      const startDate = new Date(l.startDate);
+      return startDate.getFullYear() === currentYear && startDate.getMonth() === currentMonth;
+    });
+
+    const total = leavesThisMonth.length;
+    const approved = leavesThisMonth.filter(l => l.status === 'Approved').length;
+    const rejected = leavesThisMonth.filter(l => l.status === 'Rejected').length;
+    const pending = leavesThisMonth.filter(l => l.status === 'Pending').length;
+
+    return { total, approved, rejected, pending };
+  }, [leaveRequests]);
+
   const formatTime = (timeStr) => {
     if (!timeStr || timeStr === '-') return '-';
     if (timeStr.includes(':')) {
@@ -774,7 +876,7 @@ export default function Attendance() {
 
   // Prevent body scroll when any modal is open
   useEffect(() => {
-    if (showTimingModal || showAddModal || showEditModal || showEditLeaveModal || showHolidayModal) {
+    if (showTimingModal || showAddModal || showEditModal || showEditLeaveModal || showHolidayModal || showReportModal || showEmployeeTimingModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -782,13 +884,86 @@ export default function Attendance() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [showTimingModal, showAddModal, showEditModal, showEditLeaveModal, showHolidayModal]);
+  }, [showTimingModal, showAddModal, showEditModal, showEditLeaveModal, showHolidayModal, showReportModal, showEmployeeTimingModal]);
+
+  // Paginated Lists for All Employees & Leave Requests (5 items per page)
+  const totalEmployeePages = Math.ceil(activeEmployees.length / 5) || 1;
+  const safeEmployeePage = Math.min(employeePage, totalEmployeePages) || 1;
+  const paginatedEmployees = activeEmployees.slice((safeEmployeePage - 1) * 5, safeEmployeePage * 5);
+
+  const totalLeavePages = Math.ceil(leaveRequests.length / 5) || 1;
+  const safeLeavePage = Math.min(leavePage, totalLeavePages) || 1;
+  const paginatedLeaves = leaveRequests.slice((safeLeavePage - 1) * 5, safeLeavePage * 5);
+
+  const renderPagination = (currentPage, totalPages, onPageChange) => {
+    if (totalPages <= 1) return null;
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+    return (
+      <div className="flex items-center justify-between pt-5 border-t border-[#E8E6E1] mt-4 flex-wrap gap-3">
+        <span className="text-[11px] font-bold text-slate-500">
+          Showing Page {currentPage} of {totalPages}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onPageChange(1)}
+            disabled={currentPage === 1}
+            className="w-7 h-7 rounded-lg border border-[#E8E6E1] flex items-center justify-center text-slate-650 hover:bg-slate-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold bg-white active:scale-95 transition-all outline-none"
+            title="First Page"
+          >
+            &laquo;
+          </button>
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="w-7 h-7 rounded-lg border border-[#E8E6E1] flex items-center justify-center text-slate-650 hover:bg-slate-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold bg-white active:scale-95 transition-all outline-none"
+            title="Previous Page"
+          >
+            &lsaquo;
+          </button>
+          {pages.map(p => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold transition-all active:scale-95 cursor-pointer outline-none ${
+                currentPage === p
+                  ? 'bg-[#E31C1C] text-white border-0 shadow-xs'
+                  : 'border border-[#E8E6E1] text-slate-650 hover:bg-slate-50 bg-white'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="w-7 h-7 rounded-lg border border-[#E8E6E1] flex items-center justify-center text-slate-650 hover:bg-slate-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold bg-white active:scale-95 transition-all outline-none"
+            title="Next Page"
+          >
+            &rsaquo;
+          </button>
+          <button
+            type="button"
+            onClick={() => onPageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            className="w-7 h-7 rounded-lg border border-[#E8E6E1] flex items-center justify-center text-slate-650 hover:bg-slate-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold bg-white active:scale-95 transition-all outline-none"
+            title="Last Page"
+          >
+            &raquo;
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-8 animate-fade-in text-slate-800 font-sans pb-10">
       
       {/* Premium Sub-Header exactly like the mockup */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-5 border-b border-[#E3E1DC]">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-5 border-b border-[#E3E1DC]">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate('/dashboard')} 
@@ -811,7 +986,7 @@ export default function Attendance() {
         </div>
 
         {/* Shift timing display */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
           
           {/* Attendance Notifications Bell */}
           <div className="relative flex items-center justify-center mr-1" ref={dropdownRef}>
@@ -956,10 +1131,10 @@ export default function Attendance() {
         </Card>
       ) : (
         /* Main Layout Grid matching the screenshot */
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2.8fr)_minmax(280px,1fr)] gap-6 items-start">
           
-          {/* LEFT 3 COLUMNS: Chart, Approvals, Profile Quick Card */}
-          <div className="lg:col-span-3 space-y-6">
+          {/* LEFT COLUMN: Chart, Approvals, Profile Quick Card */}
+          <div className="space-y-6 w-full min-w-0">
             
             {/* 1. Bar Chart Card */}
             <Card className="bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs">
@@ -969,33 +1144,24 @@ export default function Attendance() {
                   <p className="text-xs text-slate-500 font-semibold">Past 10 days present ratios</p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <select className="text-xs font-bold text-slate-600 border border-[#DEDCD8] bg-white rounded-lg px-2.5 py-1.5 outline-none cursor-pointer hover:border-slate-400 transition-colors">
-                    <option>All Departments</option>
-                  </select>
-                  <select className="text-xs font-bold text-slate-600 border border-[#DEDCD8] bg-white rounded-lg px-2.5 py-1.5 outline-none cursor-pointer hover:border-slate-400 transition-colors">
-                    <option>Current Month</option>
-                  </select>
-                  <select className="text-xs font-bold text-slate-600 border border-[#DEDCD8] bg-white rounded-lg px-2.5 py-1.5 outline-none cursor-pointer hover:border-slate-400 transition-colors">
-                    <option>2026</option>
-                  </select>
-                </div>
+
               </div>
 
               {/* Chart Legend */}
               <div className="flex justify-end gap-4 py-3 text-xs font-bold">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-brand-red inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
                   <span className="text-slate-600">On-time</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full bg-[#fca5a5] inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-red-300 inline-block" />
                   <span className="text-slate-600">Late</span>
                 </div>
               </div>
 
               {/* Chart Plot Area */}
-              <div className="relative pt-6 pb-2 h-68 flex">
+              <div className="overflow-x-auto scrollbar-thin">
+                <div className="relative pt-6 pb-2 h-68 flex min-w-[500px]">
                 
                 {/* Y-Axis Labels */}
                 <div className="w-10 flex flex-col justify-between text-xs font-bold text-slate-500 pr-2.5 pb-6 text-right select-none h-full">
@@ -1028,13 +1194,13 @@ export default function Attendance() {
                           {/* On-Time Rod */}
                           <div 
                             style={{ height: onTimeHeight }}
-                            className="w-2.5 bg-brand-red rounded-t-sm transition-all duration-500 group-hover:brightness-95 relative"
+                            className="w-2.5 bg-emerald-500 rounded-t-sm transition-all duration-500 group-hover:brightness-95 relative"
                             title={`On-time: ${item.onTime}`}
                           />
                           {/* Late Rod */}
                           <div 
                             style={{ height: lateHeight }}
-                            className="w-2.5 bg-[#fca5a5] rounded-t-sm transition-all duration-500 group-hover:brightness-95 relative"
+                            className="w-2.5 bg-red-300 rounded-t-sm transition-all duration-500 group-hover:brightness-95 relative"
                             title={`Late: ${item.late}`}
                           />
                         </div>
@@ -1054,16 +1220,17 @@ export default function Attendance() {
                   })}
                 </div>
               </div>
+            </div>
             </Card>
 
             {/* 2. Side-By-Side Bottom Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
-              {/* Table Card (Spans 2/3) */}
-              <Card className="md:col-span-2 bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+              {/* Table Card (Spans 3/3, extended because Add New Profile is removed) */}
+              <Card className="md:col-span-3 bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs flex flex-col justify-between">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-[#FAF9F6]">
-                    <div className="flex gap-5">
+                    <div className="flex gap-5 overflow-x-auto whitespace-nowrap scrollbar-none w-full">
                       <button
                         onClick={() => setActiveTab('pending')}
                         className={`text-sm font-extrabold uppercase tracking-wide pb-2 border-b-2 transition-all cursor-pointer bg-transparent border-0 outline-none ${
@@ -1187,14 +1354,14 @@ export default function Attendance() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#EBEAE6]">
-                          {activeEmployees.length === 0 ? (
+                          {paginatedEmployees.length === 0 ? (
                             <tr>
                               <td colSpan="5" className="py-12 text-center text-slate-500 font-bold text-xs">
                                 No registered employees yet.
                               </td>
                             </tr>
                           ) : (
-                            activeEmployees.map((emp) => (
+                            paginatedEmployees.map((emp) => (
                               <tr key={emp._id} className="hover:bg-[#FAF9F6]/40 transition-colors">
                                 <td className="py-3 flex items-center gap-2.5">
                                   {emp.profilePicture ? (
@@ -1231,11 +1398,17 @@ export default function Attendance() {
                                   <div className="inline-flex gap-1.5">
                                     <button
                                       onClick={() => handleOpenEditModal(emp)}
-                                      disabled={actionLoading}
-                                      className="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 cursor-pointer active:scale-95 transition-all outline-none"
-                                      title="Edit Details"
+                                      className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition-colors border-0 cursor-pointer outline-none"
                                     >
                                       Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenEmployeeTimingModal(emp)}
+                                      className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-colors border-0 cursor-pointer outline-none flex items-center gap-1"
+                                      title="Attendance Timing"
+                                    >
+                                      <Clock size={12} />
+                                      Timing
                                     </button>
                                     {emp.status !== 'suspended' ? (
                                       <button
@@ -1285,14 +1458,14 @@ export default function Attendance() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#EBEAE6]">
-                          {leaveRequests.length === 0 ? (
+                          {paginatedLeaves.length === 0 ? (
                             <tr>
                               <td colSpan="7" className="py-12 text-center text-slate-500 font-bold text-xs">
                                 No leave applications found.
                               </td>
                             </tr>
                           ) : (
-                            leaveRequests.map((item) => (
+                            paginatedLeaves.map((item) => (
                               <tr key={item._id} className="hover:bg-[#FAF9F6]/40 transition-colors">
                                 <td className="py-3 flex items-center gap-2.5">
                                   {item.employee ? (
@@ -1412,312 +1585,177 @@ export default function Attendance() {
                       </table>
                     ) : null}
                   </div>
+
+                  {activeTab === 'all_employees' && renderPagination(safeEmployeePage, totalEmployeePages, setEmployeePage)}
+                  {activeTab === 'leaves' && renderPagination(safeLeavePage, totalLeavePages, setLeavePage)}
                 </div>
               </Card>
 
-              {/* Add New Profile Illustration Card (Spans 1/3) */}
-              <Card className="bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs flex flex-col items-center justify-center text-center space-y-4 self-start">
-                <div className="space-y-2">
-                  <svg className="w-28 h-28 mx-auto text-slate-200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    {/* Visual representation card graphic */}
-                    <rect x="40" y="70" width="120" height="90" rx="12" fill="#FAF9F6" stroke="#E3E1DC" strokeWidth="2" />
-                    <circle cx="100" cy="100" r="16" fill="#fce8ee" />
-                    <path d="M75 145 C 75 125, 125 125, 125 145" fill="#fce8ee" />
-                    <rect x="60" y="80" width="30" height="4" rx="2" fill="#E3E1DC" />
-                    <rect x="60" y="88" width="20" height="4" rx="2" fill="#E3E1DC" />
-                    <circle cx="150" cy="140" r="14" fill="#E31C1C" />
-                    <path d="M144 140 H 156 M150 134 V 146" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
-                  
-                  <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Add New Profile</h4>
-                  <p className="text-xs text-slate-500 leading-relaxed max-w-[160px] mx-auto">
-                    Create a new employee profile directly into the active database.
-                  </p>
-                </div>
 
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="w-12 h-12 rounded-full bg-brand-red hover:bg-brand-red-hover text-white flex items-center justify-center cursor-pointer shadow-md transition-all active:scale-90 border-0"
-                  title="Add Profile"
-                >
-                  <Plus size={24} />
-                </button>
-              </Card>
 
             </div>
           </div>
-          {/* RIGHT SIDEBAR COLUMN: Checked-in logs */}
-          <div className="lg:col-span-1 bg-white border border-[#E8E6E1] rounded-3xl p-5 shadow-xs space-y-4">
+
+          {/* RIGHT SIDEBAR COLUMN: Checked-in logs & Leave Summary */}
+          <div className="space-y-6 w-full min-w-0">
             
-            {/* Sidebar Tabs */}
-            <div className="flex bg-[#FAF9F6] border border-[#E8E6E1] p-1 rounded-xl text-[10px] font-bold text-slate-500 select-none">
-              <button 
-                onClick={() => setSidebarTab('logged_in')}
-                className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all ${
-                  sidebarTab === 'logged_in' 
-                    ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
-                    : 'hover:text-slate-700'
-                }`}
-              >
-                LOGGED IN ({counters.loggedIn})
-              </button>
-              <button 
-                onClick={() => setSidebarTab('on_time')}
-                className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all ${
-                  sidebarTab === 'on_time' 
-                    ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
-                    : 'hover:text-slate-700'
-                }`}
-              >
-                ON TIME ({counters.onTime})
-              </button>
-              <button 
-                onClick={() => setSidebarTab('late')}
-                className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all ${
-                  sidebarTab === 'late' 
-                    ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
-                    : 'hover:text-slate-700'
-                }`}
-              >
-                LATE ({counters.late})
-              </button>
-            </div>
+            {/* Checked-in Logs Card */}
+            <div className="bg-white border border-[#E8E6E1] rounded-3xl p-5 shadow-xs space-y-4">
+              {/* Sidebar Tabs */}
+              <div className="flex bg-[#FAF9F6] border border-[#E8E6E1] p-1 rounded-xl text-[9px] xl:text-[10px] font-bold text-slate-500 select-none">
+                <button 
+                  onClick={() => setSidebarTab('logged_in')}
+                  className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all truncate px-1 ${
+                    sidebarTab === 'logged_in' 
+                      ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
+                      : 'hover:text-slate-700'
+                  }`}
+                >
+                  LOGGED IN ({counters.loggedIn})
+                </button>
+                <button 
+                  onClick={() => setSidebarTab('on_time')}
+                  className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all truncate px-1 ${
+                    sidebarTab === 'on_time' 
+                      ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
+                      : 'hover:text-slate-700'
+                  }`}
+                >
+                  ON TIME ({counters.onTime})
+                </button>
+                <button 
+                  onClick={() => setSidebarTab('late')}
+                  className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all truncate px-1 ${
+                    sidebarTab === 'late' 
+                      ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
+                      : 'hover:text-slate-700'
+                  }`}
+                >
+                  LATE ({counters.late})
+                </button>
+              </div>
 
-            {/* Search Input Box */}
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search employees"
-                className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl py-2.5 pl-10 pr-3 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all placeholder:text-slate-400"
-              />
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            </div>
+              {/* Search Input Box */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search employees"
+                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl py-2.5 pl-10 pr-3 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all placeholder:text-slate-400"
+                />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              </div>
 
-            {/* Scrollable Logs Stack */}
-            <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
-              {filteredSidebarLogs.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-bold">
-                  No matching employee records.
-                </div>
-              ) : (
-                filteredSidebarLogs.map((log) => (
-                  <div key={log.id} className="flex items-center justify-between group border-b border-[#EBEAE6]/40 pb-3.5 last:border-b-0">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {log.profilePicture ? (
-                        <img 
-                          src={log.profilePicture} 
-                          alt="User" 
-                          className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 border border-slate-200 text-xs shrink-0 uppercase">
-                          {log.name[0]}
-                        </div>
-                      )}
-                      <div className="flex flex-col min-w-0 text-xs">
-                        <button
-                          onClick={() => handleOpenReportModal({ _id: log.id, name: log.name, lastName: log.lastName, department: log.department, designation: log.designation, profilePicture: log.profilePicture })}
-                          className="text-slate-800 font-extrabold leading-tight truncate hover:text-brand-red cursor-pointer transition-colors text-left border-0 bg-transparent p-0 outline-none block"
-                          title="View Attendance Report"
-                        >
-                          {log.lastName ? `${log.name} ${log.lastName}` : log.name}
-                        </button>
-                        <span className="text-slate-500 text-[10px] font-semibold truncate leading-none mt-1">
-                          {log.designation || 'Staff'} | {log.department}
-                        </span>
-                        <span className="text-slate-400 text-[10px] font-medium leading-none mt-1">
-                          In: {formatTime(log.checkIn)} | Out: {formatTime(log.checkOut)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full inline-block ${
-                            log.status === 'Present' ? 'bg-brand-red animate-pulse' : 'bg-[#fca5a5]'
-                          }`} />
-                          <span className="text-[10px] font-bold text-slate-500 uppercase select-none">
-                            {log.status === 'Present' ? 'On-time' : 'Late'}
+              {/* Scrollable Logs Stack */}
+              <div className="space-y-4 max-h-[215px] overflow-y-auto pr-1 custom-scrollbar">
+                {filteredSidebarLogs.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-xs font-bold">
+                    No matching employee records.
+                  </div>
+                ) : (
+                  filteredSidebarLogs.map((log) => (
+                    <div key={log.id} className="flex items-center justify-between group border-b border-[#EBEAE6]/40 pb-3.5 last:border-b-0 gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {log.profilePicture ? (
+                          <img 
+                            src={log.profilePicture} 
+                            alt="User" 
+                            className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 border border-slate-200 text-xs shrink-0 uppercase">
+                            {log.name[0]}
+                          </div>
+                        )}
+                        <div className="flex flex-col min-w-0 text-xs w-full">
+                          <button
+                            onClick={() => handleOpenReportModal({ _id: log.id, name: log.name, lastName: log.lastName, department: log.department, designation: log.designation, profilePicture: log.profilePicture })}
+                            className="text-slate-800 font-extrabold leading-tight truncate hover:text-brand-red cursor-pointer transition-colors text-left border-0 bg-transparent p-0 outline-none block w-full"
+                            title="View Attendance Report"
+                          >
+                            {log.lastName ? `${log.name} ${log.lastName}` : log.name}
+                          </button>
+                          <span className="text-slate-500 text-[10px] font-semibold truncate leading-none mt-1 w-full">
+                            {log.designation || 'Staff'} | {log.department}
+                          </span>
+                          <span className="text-slate-400 text-[10px] font-medium leading-none mt-1 truncate w-full">
+                            In: {formatTime(log.checkIn)} | Out: {formatTime(log.checkOut)}
                           </span>
                         </div>
-                        <button
-                          onClick={() => handleOpenEditModal(log)}
-                          className="text-[9px] font-bold text-slate-400 hover:text-blue-500 flex items-center gap-0.5 cursor-pointer bg-transparent border-0 outline-none"
-                          title="Quick Edit Employee"
-                        >
-                          <Edit2 size={10} />
-                          <span>Edit</span>
-                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full inline-block ${
+                              log.status === 'Present' ? 'bg-emerald-500 animate-pulse' : 'bg-red-300'
+                            }`} />
+                            <span className="text-[10px] font-bold text-slate-500 uppercase select-none">
+                              {log.status === 'Present' ? 'On-time' : 'Late'}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleOpenEditModal(log)}
+                            className="text-[9px] font-bold text-slate-400 hover:text-blue-500 flex items-center gap-0.5 cursor-pointer bg-transparent border-0 outline-none"
+                            title="Quick Edit Employee"
+                          >
+                            <Edit2 size={10} />
+                            <span>Edit</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
             </div>
 
-            {/* Footer quick link */}
-            <div className="pt-3 text-center border-t border-slate-150">
-              <span className="text-xs font-bold text-brand-red hover:text-brand-red-hover hover:underline cursor-pointer uppercase tracking-wider block py-1">
-                View all employees ({counters.active})
-              </span>
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* POPUP MODAL: Add New Profile */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-[#0b0a09]/50 flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-[#EBEAE6] bg-[#FAF9F6]">
+            {/* Leave Summary (This Month) Card */}
+            <div className="bg-white border border-[#E8E6E1] rounded-3xl p-5 shadow-xs space-y-4">
               <div className="space-y-0.5">
-                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">
-                  Create Employee Profile
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                  Leave Summary (This Month)
                 </h3>
-                <p className="text-xs text-slate-500 font-semibold">Add profile details directly to the active directory</p>
               </div>
-              <button 
-                onClick={() => setShowAddModal(false)} 
-                className="text-slate-400 hover:text-slate-700 transition-colors cursor-pointer bg-transparent border-0 flex items-center justify-center"
-              >
-                <X size={16} />
-              </button>
+              
+              <div className="grid grid-cols-2 gap-3.5">
+                {/* Total Requests */}
+                <div className="p-3.5 bg-slate-50/50 border border-[#E8E6E1] rounded-2xl">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Total Requests</span>
+                  <strong className="text-slate-800 text-lg font-black mt-1.5 block">{leaveSummaryThisMonth.total}</strong>
+                </div>
+                {/* Approved */}
+                <div className="p-3.5 bg-emerald-50/60 border border-emerald-100 rounded-2xl">
+                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider block">Approved</span>
+                  <strong className="text-emerald-700 text-lg font-black mt-1.5 block">{leaveSummaryThisMonth.approved}</strong>
+                </div>
+                {/* Rejected */}
+                <div className="p-3.5 bg-rose-50/50 border border-rose-100 rounded-2xl">
+                  <span className="text-[9px] font-black text-brand-red uppercase tracking-wider block">Rejected</span>
+                  <strong className="text-brand-red text-lg font-black mt-1.5 block">{leaveSummaryThisMonth.rejected}</strong>
+                </div>
+                {/* Pending */}
+                <div className="p-3.5 bg-amber-50/60 border border-amber-100 rounded-2xl">
+                  <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider block">Pending</span>
+                  <strong className="text-amber-700 text-lg font-black mt-1.5 block">{leaveSummaryThisMonth.pending}</strong>
+                </div>
+              </div>
             </div>
 
-            {/* Form Scroll Area */}
-            <form onSubmit={handleCreateEmployee} className="p-6 overflow-y-auto space-y-4">
-              
-              {formError && (
-                <div className="bg-rose-50 border border-rose-100 text-brand-red text-xs font-bold p-3 rounded-2xl animate-fade-in flex items-start gap-1.5">
-                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5 flex flex-col">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">First Name</label>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="First Name"
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-1.5 flex flex-col">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Last Name</label>
-                  <input
-                    type="text"
-                    value={formLastName}
-                    onChange={(e) => setFormLastName(e.target.value)}
-                    placeholder="Last Name"
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5 flex flex-col">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Department</label>
-                  <input
-                    type="text"
-                    value={formDepartment}
-                    onChange={(e) => setFormDepartment(e.target.value)}
-                    placeholder="e.g. Sales"
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5 flex flex-col">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Designation</label>
-                  <input
-                    type="text"
-                    value={formDesignation}
-                    onChange={(e) => setFormDesignation(e.target.value)}
-                    placeholder="e.g. Designer"
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5 flex flex-col">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Phone Number</label>
-                <input
-                  type="tel"
-                  value={formPhone}
-                  onChange={(e) => setFormPhone(e.target.value)}
-                  placeholder="Phone"
-                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
-                />
-              </div>
-
-              <div className="space-y-1.5 flex flex-col">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Email</label>
-                <input
-                  type="email"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  placeholder="Email Address"
-                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5 flex flex-col">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Password</label>
-                <input
-                  type="password"
-                  value={formPassword}
-                  onChange={(e) => setFormPassword(e.target.value)}
-                  placeholder="Min 6 chars"
-                  className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-2.5 pt-4 border-t border-[#EBEAE6]">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 bg-white hover:bg-slate-50 border border-[#DEDCD8] text-slate-500 rounded-xl text-xs font-bold py-2.5 cursor-pointer shadow-sm transition-all"
-                  disabled={actionLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold py-2.5 cursor-pointer shadow-sm border-0 transition-all flex items-center justify-center gap-1.5"
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? (
-                    <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                  ) : (
-                    'Add Profile'
-                  )}
-                </button>
-              </div>
-            </form>
           </div>
+
         </div>
       )}
+
+
 
       {/* POPUP MODAL: Edit Employee Profile */}
       {showEditModal && (
         <div className="fixed inset-0 bg-[#0b0a09]/50 flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <form onSubmit={handleUpdateEmployee} className="bg-white border border-[#E8E6E1] rounded-3xl w-[calc(100%-32px)] sm:w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] min-h-0">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-[#EBEAE6] bg-[#FAF9F6]">
+            <div className="flex items-center justify-between p-5 border-b border-[#EBEAE6] bg-[#FAF9F6] shrink-0">
               <div className="space-y-0.5">
                 <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wide">
                   Edit Employee Profile
@@ -1725,6 +1763,7 @@ export default function Attendance() {
                 <p className="text-xs text-slate-500 font-semibold">Modify database records for this employee</p>
               </div>
               <button 
+                type="button"
                 onClick={() => setShowEditModal(false)} 
                 className="text-slate-400 hover:text-slate-700 transition-colors cursor-pointer bg-transparent border-0 flex items-center justify-center"
               >
@@ -1733,7 +1772,7 @@ export default function Attendance() {
             </div>
 
             {/* Form Scroll Area */}
-            <form onSubmit={handleUpdateEmployee} className="p-6 overflow-y-auto space-y-4">
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
               
               {editFormError && (
                 <div className="bg-rose-50 border border-rose-100 text-brand-red text-xs font-bold p-3 rounded-2xl animate-fade-in flex items-start gap-1.5">
@@ -1764,8 +1803,9 @@ export default function Attendance() {
                       const file = e.target.files[0];
                       if (file) {
                         const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setEditFormProfilePicture(reader.result);
+                        reader.onloadend = async () => {
+                          const compressed = await compressImage(reader.result);
+                          setEditFormProfilePicture(compressed);
                         };
                         reader.readAsDataURL(file);
                       }
@@ -1775,7 +1815,7 @@ export default function Attendance() {
                 </label>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">First Name</label>
                   <input
@@ -1801,7 +1841,7 @@ export default function Attendance() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Department</label>
                   <input
@@ -1859,36 +1899,37 @@ export default function Attendance() {
                   className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-slate-500 focus:bg-white transition-all"
                 />
               </div>
+            </div>
 
-              <div className="flex gap-2.5 pt-4 border-t border-[#EBEAE6]">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 bg-white hover:bg-slate-50 border border-[#DEDCD8] text-slate-500 rounded-xl text-xs font-bold py-2.5 cursor-pointer shadow-sm transition-all"
-                  disabled={actionLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold py-2.5 cursor-pointer shadow-sm border-0 transition-all flex items-center justify-center gap-1.5"
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? (
-                    <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                  ) : (
-                    'Save Changes'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+            {/* Footer */}
+            <div className="flex gap-2.5 p-5 border-t border-[#EBEAE6] bg-[#FAF9F6] shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="flex-1 bg-white hover:bg-slate-50 border border-[#DEDCD8] text-slate-500 rounded-xl text-xs font-bold py-2.5 cursor-pointer shadow-sm transition-all"
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold py-2.5 cursor-pointer shadow-sm border-0 transition-all flex items-center justify-center gap-1.5"
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       )}
       {/* FULLSCREEN OVERLAY MODAL: Monthly Attendance Report */}
       {showReportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 sm:p-6 z-50 animate-fade-in">
-          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-5xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-[calc(100%-32px)] sm:w-full max-w-5xl shadow-2xl flex flex-col max-h-[80vh] min-h-0 overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-[#EBEAE6] bg-[#FAF9F6]">
               <div className="flex items-center gap-3">
@@ -1921,7 +1962,7 @@ export default function Attendance() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
               {/* Controls (Month Select & Export) */}
               <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-[#FAF9F6] border border-[#EBEAE6] p-4.5 rounded-2xl">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -2024,7 +2065,9 @@ export default function Attendance() {
                                 day.status === 'Present'
                                   ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                                   : day.status === 'Late'
-                                  ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                                  ? 'bg-red-50 text-red-500 border border-red-100'
+                                  : day.status === 'Absent'
+                                  ? 'bg-red-100 text-red-700 border border-red-200'
                                   : day.status === 'Half Day'
                                   ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
                                   : day.status === 'Paid Leave'
@@ -2061,7 +2104,7 @@ export default function Attendance() {
       {/* DECLARE HOLIDAY MODAL */}
       {showHolidayModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 sm:p-6 z-50 animate-fade-in">
-          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-xl shadow-2xl p-6 relative flex flex-col max-h-[85vh] overflow-hidden">
+          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-[calc(100%-32px)] sm:w-full max-w-xl shadow-2xl p-5 sm:p-6 relative flex flex-col max-h-[90vh] min-h-0 overflow-hidden">
             <button 
               onClick={() => setShowHolidayModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer bg-transparent border-0 flex items-center justify-center outline-none"
@@ -2259,7 +2302,7 @@ export default function Attendance() {
       {/* LEAVE DETAILS FULL MESSAGE MODAL */}
       {selectedLeave && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-md shadow-2xl p-6 relative flex flex-col space-y-4">
+          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-[calc(100%-32px)] sm:w-full max-w-md shadow-2xl p-5 sm:p-6 relative flex flex-col max-h-[90vh] min-h-0 overflow-hidden">
             
             {/* Close button */}
             <button 
@@ -2270,7 +2313,7 @@ export default function Attendance() {
             </button>
 
             {/* Header */}
-            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100 shrink-0">
               <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 text-brand-red flex items-center justify-center font-bold text-sm">
                 {selectedLeave.employee?.name ? selectedLeave.employee.name[0] : 'L'}
               </div>
@@ -2284,40 +2327,43 @@ export default function Attendance() {
               </div>
             </div>
 
-            {/* Duration & Status Info */}
-            <div className="grid grid-cols-2 gap-3 bg-[#FAF9F6] p-3.5 rounded-2xl border border-[#E8E6E1] text-xs">
-              <div>
-                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Duration</span>
-                <span className="font-bold text-slate-800 text-[11px]">
-                  {formatDate(selectedLeave.startDate)} &mdash; {formatDate(selectedLeave.endDate)}
-                </span>
+            {/* Scrollable Body Content */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1">
+              {/* Duration & Status Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#FAF9F6] p-3.5 rounded-2xl border border-[#E8E6E1] text-xs">
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Duration</span>
+                  <span className="font-bold text-slate-800 text-[11px]">
+                    {formatDate(selectedLeave.startDate)} &mdash; {formatDate(selectedLeave.endDate)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Status</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase inline-block mt-0.5 text-white ${
+                    selectedLeave.status === 'Approved'
+                      ? 'bg-green-500'
+                      : selectedLeave.status === 'Rejected'
+                      ? 'bg-red-500'
+                      : 'bg-amber-400'
+                  }`}>
+                    {selectedLeave.status}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold block">Status</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase inline-block mt-0.5 text-white ${
-                  selectedLeave.status === 'Approved'
-                    ? 'bg-green-500'
-                    : selectedLeave.status === 'Rejected'
-                    ? 'bg-red-500'
-                    : 'bg-amber-400'
-                }`}>
-                  {selectedLeave.status}
-                </span>
-              </div>
-            </div>
 
-            {/* Full Message Body */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                Complete Leave Reason Message:
-              </label>
-              <div className="bg-[#FAF9F6] border border-[#DEDCD8] rounded-2xl p-4 text-xs font-semibold text-slate-750 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
-                {selectedLeave.reason || 'No detailed message provided.'}
+              {/* Full Message Body */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                  Complete Leave Reason Message:
+                </label>
+                <div className="bg-[#FAF9F6] border border-[#DEDCD8] rounded-2xl p-4 text-xs font-semibold text-slate-750 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                  {selectedLeave.reason || 'No detailed message provided.'}
+                </div>
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-2.5 pt-2 border-t border-slate-100">
+            <div className="flex gap-2.5 pt-4 border-t border-slate-100 shrink-0">
               {selectedLeave.status === 'Pending' ? (
                 <>
                   <button
@@ -2373,10 +2419,10 @@ export default function Attendance() {
       {/* SHIFT & OFFICE TIMINGS CONFIGURATION MODAL */}
       {showTimingModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <form onSubmit={handleSaveAttendanceSettings} className="bg-white border border-[#E8E6E1] rounded-3xl w-[calc(100%-32px)] sm:w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] min-h-0">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-[#EBEAE6] bg-[#FAF9F6]">
+            <div className="flex items-center justify-between p-5 border-b border-[#EBEAE6] bg-[#FAF9F6] shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-red-50 text-brand-red flex items-center justify-center border border-red-100">
                   <Clock size={16} />
@@ -2391,241 +2437,241 @@ export default function Attendance() {
                 </div>
               </div>
               <button 
+                type="button"
                 onClick={() => setShowTimingModal(false)}
                 className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-2 rounded-full transition-colors cursor-pointer bg-transparent border-0 flex items-center justify-center outline-none"
               >
                 <X size={18} />
               </button>
             </div>
-
-            {/* Form */}
-            <form onSubmit={handleSaveAttendanceSettings} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {timingError && (
-                <div className="bg-rose-50 border border-rose-100 text-brand-red text-xs font-bold p-3 rounded-xl flex items-center gap-2">
-                  <AlertCircle size={14} className="shrink-0" />
-                  <span>{timingError}</span>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Office Start Time */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Office Start Time (24h)
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={timingFormData.officeStartTime || '10:00'}
-                    onChange={(e) => setTimingFormData({ ...timingFormData, officeStartTime: e.target.value })}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  />
-                  <span className="text-[9px] text-slate-400 font-semibold block">Official shift commencement</span>
-                </div>
-
-                {/* Office End Time */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Office End Time (24h)
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={timingFormData.officeEndTime || '18:00'}
-                    onChange={(e) => setTimingFormData({ ...timingFormData, officeEndTime: e.target.value })}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  />
-                  <span className="text-[9px] text-slate-400 font-semibold block">Official shift punch-out</span>
-                </div>
-
-                {/* Late Check-in Threshold */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Late Grace Time (24h)
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={timingFormData.lateThresholdTime || '10:15'}
-                    onChange={(e) => setTimingFormData({ ...timingFormData, lateThresholdTime: e.target.value })}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  />
-                  <span className="text-[9px] text-slate-400 font-semibold block">Check-ins after this time mark Late</span>
-                </div>
-
-                {/* Half-Day Threshold (Hours) */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Half-Day Hours Limit
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="1"
-                    max="12"
-                    required
-                    value={timingFormData.halfDayThresholdHours ?? 4.0}
-                    onChange={(e) => setTimingFormData({ ...timingFormData, halfDayThresholdHours: Number(e.target.value) })}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  />
-                  <span className="text-[9px] text-slate-400 font-semibold block">Working &lt; this marks Half-Day (e.g. 4 hrs)</span>
-                </div>
-
-                {/* Monthly Paid Leaves Quota */}
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Monthly Paid Leaves Quota (per employee)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="31"
-                    required
-                    value={timingFormData.monthlyPaidLeavesQuota ?? 2}
-                    onChange={(e) => setTimingFormData({ ...timingFormData, monthlyPaidLeavesQuota: Number(e.target.value) })}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  />
-                  <span className="text-[9px] text-slate-400 font-semibold block">
-                    Leaves approved up to this count in a calendar month are Paid (No salary deduction). Extra leaves become Unpaid / Loss of Pay.
-                  </span>
-                </div>
-
-                {/* Geofencing Config */}
-                <div className="space-y-1 sm:col-span-2 pt-2.5 border-t border-[#EBEAE6]">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="geofencingEnabled"
-                      checked={timingFormData.geofencingEnabled || false}
-                      onChange={(e) => setTimingFormData({ ...timingFormData, geofencingEnabled: e.target.checked })}
-                      className="w-4 h-4 text-brand-red border-[#DEDCD8] rounded focus:ring-brand-red cursor-pointer accent-[#E31C1C]"
-                    />
-                    <label htmlFor="geofencingEnabled" className="text-xs font-extrabold text-slate-700 cursor-pointer select-none">
-                      Enable Location Geofencing
-                    </label>
+              {/* Scrollable Fields */}
+              <div className="p-5 sm:p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                {timingError && (
+                  <div className="bg-rose-50 border border-rose-100 text-brand-red text-xs font-bold p-3 rounded-xl flex items-center gap-2">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{timingError}</span>
                   </div>
-                  <span className="text-[9px] text-slate-400 font-semibold block">
-                    Force employees to punch in/out only when they are within the office boundary area.
-                  </span>
-                </div>
-
-                {timingFormData.geofencingEnabled && (
-                  <>
-                    <div className="sm:col-span-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!navigator.geolocation) {
-                            alert("Geolocation is not supported by your browser.");
-                            return;
-                          }
-                          navigator.geolocation.getCurrentPosition(
-                            (position) => {
-                              setTimingFormData({
-                                ...timingFormData,
-                                officeLatitude: position.coords.latitude.toFixed(6),
-                                officeLongitude: position.coords.longitude.toFixed(6)
-                              });
-                            },
-                            (error) => {
-                              alert("Failed to fetch location: " + error.message);
-                            },
-                            { enableHighAccuracy: true }
-                          );
-                        }}
-                        className="py-1.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-                      >
-                        <MapPin size={12} className="text-amber-500" />
-                        <span>Detect My Location</span>
-                      </button>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                        Office Latitude
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={timingFormData.officeLatitude ?? ''}
-                        onChange={(e) => setTimingFormData({ ...timingFormData, officeLatitude: e.target.value })}
-                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                        placeholder="e.g. 26.9405"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                        Office Longitude
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={timingFormData.officeLongitude ?? ''}
-                        onChange={(e) => setTimingFormData({ ...timingFormData, officeLongitude: e.target.value })}
-                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                        placeholder="e.g. 75.7145"
-                      />
-                    </div>
-
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                        Allowed Radius (meters)
-                      </label>
-                      <input
-                        type="number"
-                        min="5"
-                        max="5000"
-                        required
-                        value={timingFormData.allowedRadius ?? ''}
-                        onChange={(e) => setTimingFormData({ ...timingFormData, allowedRadius: e.target.value })}
-                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                        placeholder="e.g. 100"
-                      />
-                      <span className="text-[9px] text-slate-400 font-semibold block">
-                        Allowed distance radius from the coordinates (in meters) to log attendance.
-                      </span>
-                    </div>
-                  </>
                 )}
-              </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-3 border-t border-[#EBEAE6]">
-                <button
-                  type="button"
-                  onClick={() => setShowTimingModal(false)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border-0"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={timingLoading}
-                  className="flex-1 py-2.5 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer border-0 shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
-                >
-                  {timingLoading ? (
-                    <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                  ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Office Start Time */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Office Start Time (24h)
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={timingFormData.officeStartTime || '10:00'}
+                      onChange={(e) => setTimingFormData({ ...timingFormData, officeStartTime: e.target.value })}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    />
+                    <span className="text-[9px] text-slate-400 font-semibold block">Official shift commencement</span>
+                  </div>
+
+                  {/* Office End Time */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Office End Time (24h)
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={timingFormData.officeEndTime || '18:00'}
+                      onChange={(e) => setTimingFormData({ ...timingFormData, officeEndTime: e.target.value })}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    />
+                    <span className="text-[9px] text-slate-400 font-semibold block">Official shift punch-out</span>
+                  </div>
+
+                  {/* Late Check-in Threshold */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Late Grace Time (24h)
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={timingFormData.lateThresholdTime || '10:15'}
+                      onChange={(e) => setTimingFormData({ ...timingFormData, lateThresholdTime: e.target.value })}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    />
+                    <span className="text-[9px] text-slate-400 font-semibold block">Check-ins after this time mark Late</span>
+                  </div>
+
+                  {/* Half-Day Threshold (Hours) */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Half-Day Hours Limit
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="1"
+                      max="12"
+                      required
+                      value={timingFormData.halfDayThresholdHours ?? 4.0}
+                      onChange={(e) => setTimingFormData({ ...timingFormData, halfDayThresholdHours: Number(e.target.value) })}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    />
+                    <span className="text-[9px] text-slate-400 font-semibold block">Working &lt; this marks Half-Day (e.g. 4 hrs)</span>
+                  </div>
+
+                  {/* Monthly Paid Leaves Quota */}
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Monthly Paid Leaves Quota (per employee)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="31"
+                      required
+                      value={timingFormData.monthlyPaidLeavesQuota ?? 2}
+                      onChange={(e) => setTimingFormData({ ...timingFormData, monthlyPaidLeavesQuota: Number(e.target.value) })}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    />
+                    <span className="text-[9px] text-slate-400 font-semibold block">
+                      Leaves approved up to this count in a calendar month are Paid (No salary deduction). Extra leaves become Unpaid / Loss of Pay.
+                    </span>
+                  </div>
+
+                  {/* Geofencing Config */}
+                  <div className="space-y-1 sm:col-span-2 pt-2.5 border-t border-[#EBEAE6]">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="geofencingEnabled"
+                        checked={timingFormData.geofencingEnabled || false}
+                        onChange={(e) => setTimingFormData({ ...timingFormData, geofencingEnabled: e.target.checked })}
+                        className="w-4 h-4 text-brand-red border-[#DEDCD8] rounded focus:ring-brand-red cursor-pointer accent-[#E31C1C]"
+                      />
+                      <label htmlFor="geofencingEnabled" className="text-xs font-extrabold text-slate-700 cursor-pointer select-none">
+                        Enable Location Geofencing
+                      </label>
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-semibold block">
+                      Force employees to punch in/out only when they are within the office boundary area.
+                    </span>
+                  </div>
+
+                  {timingFormData.geofencingEnabled && (
                     <>
-                      <Check size={14} />
-                      <span>Save Shift Settings</span>
+                      <div className="sm:col-span-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!navigator.geolocation) {
+                              alert("Geolocation is not supported by your browser.");
+                              return;
+                            }
+                            navigator.geolocation.getCurrentPosition(
+                              (position) => {
+                                setTimingFormData({
+                                  ...timingFormData,
+                                  officeLatitude: position.coords.latitude.toFixed(6),
+                                  officeLongitude: position.coords.longitude.toFixed(6)
+                                });
+                              },
+                              (error) => {
+                                alert("Failed to fetch location: " + error.message);
+                              },
+                              { enableHighAccuracy: true }
+                            );
+                          }}
+                          className="py-1.5 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-700 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                        >
+                          <MapPin size={12} className="text-amber-500" />
+                          <span>Detect My Location</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                          Office Latitude
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={timingFormData.officeLatitude ?? ''}
+                          onChange={(e) => setTimingFormData({ ...timingFormData, officeLatitude: e.target.value })}
+                          className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                          placeholder="e.g. 26.9405"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                          Office Longitude
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={timingFormData.officeLongitude ?? ''}
+                          onChange={(e) => setTimingFormData({ ...timingFormData, officeLongitude: e.target.value })}
+                          className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                          placeholder="e.g. 75.7145"
+                        />
+                      </div>
+
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                          Allowed Radius (meters)
+                        </label>
+                        <input
+                          type="number"
+                          min="5"
+                          max="5000"
+                          required
+                          value={timingFormData.allowedRadius ?? ''}
+                          onChange={(e) => setTimingFormData({ ...timingFormData, allowedRadius: e.target.value })}
+                          className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                          placeholder="e.g. 100"
+                        />
+                        <span className="text-[9px] text-slate-400 font-semibold block">
+                          Allowed distance radius from the coordinates (in meters) to log attendance.
+                        </span>
+                      </div>
                     </>
                   )}
-                </button>
+                </div>
               </div>
-            </form>
 
-          </div>
+            {/* Action Buttons */}
+            <div className="flex gap-3 p-5 bg-[#FAF9F6] border-t border-[#EBEAE6] shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowTimingModal(false)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border-0"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={timingLoading}
+                className="flex-1 py-2.5 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer border-0 shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {timingLoading ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                ) : (
+                  <>
+                    <Check size={14} />
+                    <span>Save Shift Settings</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
       {/* ADMIN EDIT LEAVE MODAL */}
       {showEditLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-[#E8E6E1] space-y-5">
+          <div className="bg-white rounded-3xl max-w-lg w-[calc(100%-32px)] sm:w-full shadow-2xl border border-[#E8E6E1] flex flex-col max-h-[90vh] min-h-0 overflow-hidden">
             
-            <div className="flex items-center justify-between border-b border-[#EBEAE6] pb-3.5">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[#EBEAE6] p-5 sm:p-6 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-brand-red/10 text-brand-red">
                   <Edit2 size={20} />
@@ -2645,94 +2691,98 @@ export default function Attendance() {
             </div>
 
             {editLeaveError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2 font-medium">
+              <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2 font-medium shrink-0">
                 <AlertCircle size={14} className="shrink-0" />
                 <span>{editLeaveError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveLeaveEdit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                
-                {/* Start Date */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Leave Start Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={editLeaveStartDate}
-                    onChange={(e) => setEditLeaveStartDate(e.target.value)}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  />
-                </div>
+            <form onSubmit={handleSaveLeaveEdit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Scrollable Fields */}
+              <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  
+                  {/* Start Date */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Leave Start Date
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={editLeaveStartDate}
+                      onChange={(e) => setEditLeaveStartDate(e.target.value)}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    />
+                  </div>
 
-                {/* End Date */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Leave End Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={editLeaveEndDate}
-                    onChange={(e) => setEditLeaveEndDate(e.target.value)}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  />
-                </div>
+                  {/* End Date */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Leave End Date
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={editLeaveEndDate}
+                      onChange={(e) => setEditLeaveEndDate(e.target.value)}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    />
+                  </div>
 
-                {/* Leave Type */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Leave Category / Type
-                  </label>
-                  <select
-                    value={editLeaveType}
-                    onChange={(e) => setEditLeaveType(e.target.value)}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  >
-                    <option value="Casual">Casual Leave</option>
-                    <option value="Sick">Sick Leave</option>
-                    <option value="Earned">Earned Leave</option>
-                    <option value="Maternity">Maternity Leave</option>
-                    <option value="Unpaid">Unpaid Leave (LOP)</option>
-                  </select>
-                </div>
+                  {/* Leave Type */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Leave Category / Type
+                    </label>
+                    <select
+                      value={editLeaveType}
+                      onChange={(e) => setEditLeaveType(e.target.value)}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    >
+                      <option value="Casual">Casual Leave</option>
+                      <option value="Sick">Sick Leave</option>
+                      <option value="Earned">Earned Leave</option>
+                      <option value="Maternity">Maternity Leave</option>
+                      <option value="Unpaid">Unpaid Leave (LOP)</option>
+                    </select>
+                  </div>
 
-                {/* Status */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Approval Status
-                  </label>
-                  <select
-                    value={editLeaveStatus}
-                    onChange={(e) => setEditLeaveStatus(e.target.value)}
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
-                  >
-                    <option value="Approved">Approved (Auto-reconciles Attendance)</option>
-                    <option value="Pending">Pending Review</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </div>
+                  {/* Status */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Approval Status
+                    </label>
+                    <select
+                      value={editLeaveStatus}
+                      onChange={(e) => setEditLeaveStatus(e.target.value)}
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all"
+                    >
+                      <option value="Approved">Approved (Auto-reconciles Attendance)</option>
+                      <option value="Pending">Pending Review</option>
+                      <option value="Rejected">Rejected</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
 
-                {/* Admin Remarks */}
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Admin Note / Instructions (Visible to Employee)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={editLeaveRemarks}
-                    onChange={(e) => setEditLeaveRemarks(e.target.value)}
-                    placeholder="e.g. Dates adjusted per discussion..."
-                    className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all resize-none"
-                  />
+                  {/* Admin Remarks */}
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
+                      Admin Note / Instructions (Visible to Employee)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={editLeaveRemarks}
+                      onChange={(e) => setEditLeaveRemarks(e.target.value)}
+                      placeholder="e.g. Dates adjusted per discussion..."
+                      className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-brand-red focus:bg-white transition-all resize-none"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-3 border-t border-[#EBEAE6]">
+              {/* Action Buttons Footer */}
+              <div className="flex gap-3 p-5 sm:p-6 bg-[#FAF9F6] border-t border-[#EBEAE6] shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowEditLeaveModal(false)}
@@ -2756,7 +2806,154 @@ export default function Attendance() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
 
+      {/* EMPLOYEE TIMING MODAL */}
+      {showEmployeeTimingModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 sm:p-6 z-50 animate-fade-in">
+          <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-[#EBEAE6] bg-[#FAF9F6]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-800 tracking-tight uppercase">
+                    Attendance Timing
+                  </h3>
+                  <p className="text-[10px] sm:text-xs text-slate-500 font-semibold mt-0.5">
+                    {timingEmployeeName}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowEmployeeTimingModal(false)}
+                className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-2 rounded-full transition-colors cursor-pointer bg-transparent border-0 flex items-center justify-center outline-none"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleUpdateEmployeeTiming} className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+              <div className="p-5 sm:p-6 space-y-6 flex-1">
+                
+                {/* Global vs Custom Toggle */}
+                <div className="flex items-center justify-between p-4 bg-[#FAF9F6] border border-[#EBEAE6] rounded-2xl">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Enable Individual Timing</h4>
+                    <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Override global shift settings</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={timingEnabled}
+                      onChange={(e) => setTimingEnabled(e.target.checked)}
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                  </label>
+                </div>
+
+                {!timingEnabled && (
+                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[10px] font-bold text-amber-600 flex items-start gap-2">
+                    <Info size={14} className="shrink-0 mt-0.5" />
+                    <p>Individual timing is disabled. The employee is currently using the global/default attendance timing.</p>
+                  </div>
+                )}
+
+                <div className={`space-y-5 ${!timingEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {/* Start Time */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Office Start Time</label>
+                      <input
+                        type="time"
+                        required={timingEnabled}
+                        value={timingStartTime}
+                        onChange={(e) => setTimingStartTime(e.target.value)}
+                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer"
+                      />
+                    </div>
+                    {/* End Time */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Office End Time</label>
+                      <input
+                        type="time"
+                        required={timingEnabled}
+                        value={timingEndTime}
+                        onChange={(e) => setTimingEndTime(e.target.value)}
+                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {/* Late Grace Time */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block flex items-center gap-1">
+                        Late Grace Time <Info size={10} className="text-slate-400" />
+                      </label>
+                      <input
+                        type="time"
+                        required={timingEnabled}
+                        value={timingLateAfter}
+                        onChange={(e) => setTimingLateAfter(e.target.value)}
+                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all cursor-pointer"
+                      />
+                      <p className="text-[9px] text-slate-400 font-semibold px-1">Check-in after this = Late</p>
+                    </div>
+                    {/* Half Day Hours */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block flex items-center gap-1">
+                        Half-Day Hours
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="24"
+                        step="0.5"
+                        required={timingEnabled}
+                        value={timingHalfDayHours}
+                        onChange={(e) => setTimingHalfDayHours(Number(e.target.value))}
+                        className="w-full bg-[#FAF9F6] border border-[#DEDCD8] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                      />
+                      <p className="text-[9px] text-slate-400 font-semibold px-1">Work less than this = Half Day</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+              
+              {/* Action Buttons Footer */}
+              <div className="flex gap-3 p-5 sm:p-6 bg-[#FAF9F6] border-t border-[#EBEAE6] shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowEmployeeTimingModal(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border-0"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer border-0 shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {actionLoading ? (
+                    <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      <span>Save Timing</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

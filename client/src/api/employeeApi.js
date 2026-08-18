@@ -57,6 +57,15 @@ export const employeeApi = {
     return data;
   },
 
+  uploadProfilePicture: async (file) => {
+    const formData = new FormData();
+    formData.append('profilePicture', file);
+    const { data } = await employeeAxios.post('/employee/me/upload-picture', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return data;
+  },
+
   getNotifications: async () => {
     const { data } = await employeeAxios.get('/employee/notifications');
     return data;

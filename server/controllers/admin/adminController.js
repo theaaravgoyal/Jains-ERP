@@ -46,7 +46,7 @@ exports.approveEmployee = async (req, res, next) => {
         targetUser: employee._id,
         senderName: 'System Admin',
         title: 'Account Approved',
-        message: 'Congratulations! Your employee account has been approved by the Admin. You can now access your attendance portal.',
+        message: 'Your employee registration has been approved.',
         type: 'ACCOUNT_APPROVED',
         module: 'Attendance',
         priority: 'HIGH'
@@ -69,6 +69,22 @@ exports.rejectEmployee = async (req, res, next) => {
     const employee = await Employee.findById(req.params.id);
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee not found.' });
+    }
+
+    // Create rejection notification for the employee
+    try {
+      await Notification.create({
+        recipient: employee._id,
+        targetUser: employee._id,
+        senderName: 'System Admin',
+        title: 'Account Rejected',
+        message: 'Your employee registration request has been rejected.',
+        type: 'ACCOUNT_REJECTED',
+        module: 'Attendance',
+        priority: 'HIGH'
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch employee rejection notification:', notifErr.message);
     }
 
     await Employee.findByIdAndDelete(req.params.id);
@@ -344,16 +360,17 @@ exports.getEmployeeMonthlyReport = async (req, res, next) => {
       });
 
       let status = '-';
-      let remarks = record ? (record.remarks || '-') : '-';
+      let remarks = '-';
 
-      if (record) {
-        status = record.status;
-      } else if (matchedHoliday) {
+      if (matchedHoliday) {
         status = 'Holiday';
         remarks = matchedHoliday.reason || 'Official Holiday';
       } else if (matchedLeave) {
         status = 'Paid Leave';
         remarks = `${matchedLeave.leaveType} Leave (${matchedLeave.reason || 'Approved'})`;
+      } else if (record) {
+        status = record.status;
+        remarks = record.remarks || '-';
       } else {
         const isFuture = currentDate > today;
         const isBeforeJoining = currentDate < joiningDayStart;
@@ -483,7 +500,7 @@ exports.markHoliday = async (req, res, next) => {
         targetUser: emp._id,
         senderName: 'Admin',
         title: 'Holiday Announcement',
-        message: `Official Holiday declared on ${holidayDateFormatted} (${holiday.reason || 'Holiday'}). Attendance is excused.`,
+        message: `New holiday announced: ${holiday.reason || 'Holiday'} on ${holidayDateFormatted}.`,
         type: 'HOLIDAY_ANNOUNCEMENT',
         module: 'Attendance',
         priority: 'MEDIUM'
@@ -588,6 +605,32 @@ exports.updateHoliday = async (req, res, next) => {
       }
     }
 
+    // Broadcast updated holiday notification to active employees
+    try {
+      const holidayDateFormatted = new Date(holiday.date).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Asia/Kolkata'
+      });
+      const notificationsToInsert = employees.map((emp) => ({
+        recipient: emp._id,
+        targetUser: emp._id,
+        senderName: 'Admin',
+        title: 'Holiday Updated',
+        message: `Holiday updated: ${holiday.reason || 'Holiday'} on ${holidayDateFormatted}.`,
+        type: 'HOLIDAY_UPDATED',
+        module: 'Attendance',
+        priority: 'MEDIUM'
+      }));
+
+      if (notificationsToInsert.length > 0) {
+        await Notification.insertMany(notificationsToInsert);
+      }
+    } catch (notifErr) {
+      console.warn('Failed to broadcast holiday update notifications:', notifErr.message);
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Holiday details successfully updated and synchronized.',
@@ -618,6 +661,27 @@ exports.deleteHoliday = async (req, res, next) => {
       status: 'Holiday',
       date: { $gte: startOfDay, $lte: endOfDay }
     });
+
+    // Broadcast holiday cancellation notification to active employees
+    try {
+      const employees = await Employee.find({ status: { $in: ['active', 'approved'] } });
+      const notificationsToInsert = employees.map((emp) => ({
+        recipient: emp._id,
+        targetUser: emp._id,
+        senderName: 'Admin',
+        title: 'Holiday Cancelled',
+        message: `Holiday cancelled: ${holiday.reason || 'Holiday'}.`,
+        type: 'HOLIDAY_CANCELLED',
+        module: 'Attendance',
+        priority: 'MEDIUM'
+      }));
+
+      if (notificationsToInsert.length > 0) {
+        await Notification.insertMany(notificationsToInsert);
+      }
+    } catch (notifErr) {
+      console.warn('Failed to broadcast holiday cancellation notifications:', notifErr.message);
+    }
 
     return res.status(200).json({
       success: true,
@@ -706,6 +770,40 @@ exports.updateAttendanceSettings = async (req, res, next) => {
       success: true,
       message: 'Attendance and shift timings updated successfully.',
       settings: settings.attendance
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Update employee attendance timing (Per-employee Shift Control)
+// @route   PUT /api/admin/employees/:id/attendance-timing
+// @access  Private (Admin only)
+exports.updateEmployeeTiming = async (req, res, next) => {
+  try {
+    const { enabled, startTime, endTime, lateAfter, halfDayHours } = req.body;
+    
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found.' });
+    }
+
+    if (!employee.attendanceSchedule) {
+      employee.attendanceSchedule = {};
+    }
+
+    if (enabled !== undefined) employee.attendanceSchedule.enabled = enabled;
+    if (startTime !== undefined) employee.attendanceSchedule.startTime = startTime;
+    if (endTime !== undefined) employee.attendanceSchedule.endTime = endTime;
+    if (lateAfter !== undefined) employee.attendanceSchedule.lateAfter = lateAfter;
+    if (halfDayHours !== undefined) employee.attendanceSchedule.halfDayHours = Number(halfDayHours);
+
+    await employee.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Employee attendance timing updated successfully.',
+      schedule: employee.attendanceSchedule
     });
   } catch (err) {
     next(err);

@@ -28,6 +28,39 @@ import { ROUTES } from '../../constants/Routes';
 import { formatDate } from '../../utils/dateUtils';
 import DatePicker from '../../Modules/FeesManagement/components/DatePicker';
 
+const compressImage = (base64Str, maxWidth = 150, maxHeight = 150) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => {
+      resolve(base64Str);
+    };
+  });
+};
+
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const { employee, employeeToken, employeeLogout, setEmployee } = useEmployeeAuth();
@@ -85,9 +118,12 @@ export default function EmployeeDashboard() {
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editPassword, setEditPassword] = useState('');
-  const [editProfilePicture, setEditProfilePicture] = useState('');
+  const [editProfilePicture, setEditProfilePicture] = useState(''); // current saved URL
+  const [editPictureFile, setEditPictureFile] = useState(null);     // new file to upload
+  const [editPicturePreview, setEditPicturePreview] = useState(''); // local preview URL
   const [profileEditError, setProfileEditError] = useState('');
   const [profileEditSuccess, setProfileEditSuccess] = useState('');
+  const [pictureUploading, setPictureUploading] = useState(false);
 
   // Notifications States
   const [notifications, setNotifications] = useState([]);
@@ -1317,6 +1353,8 @@ export default function EmployeeDashboard() {
                         setEditEmail(employee?.email || '');
                         setEditPhone(employee?.phone || '');
                         setEditProfilePicture(employee?.profilePicture || '');
+                        setEditPictureFile(null);
+                        setEditPicturePreview('');
                         setEditPassword('');
                         setProfileEditError('');
                         setProfileEditSuccess('');
@@ -1343,18 +1381,42 @@ export default function EmployeeDashboard() {
                     setProfileEditSuccess('');
                     setBtnLoading(true);
                     try {
+                      let newPictureUrl = editProfilePicture;
+
+                      // Step 1: If a new picture file was selected, upload it first
+                      if (editPictureFile) {
+                        setPictureUploading(true);
+                        try {
+                          const uploadRes = await employeeApi.uploadProfilePicture(editPictureFile);
+                          if (uploadRes.success) {
+                            newPictureUrl = uploadRes.profilePicture;
+                          }
+                        } catch (uploadErr) {
+                          setProfileEditError(uploadErr.response?.data?.message || 'Failed to upload profile picture. Please try a smaller image.');
+                          setBtnLoading(false);
+                          setPictureUploading(false);
+                          return;
+                        } finally {
+                          setPictureUploading(false);
+                        }
+                      }
+
+                      // Step 2: Update remaining profile fields
                       const res = await employeeApi.updateProfile({
                         name: editName,
                         lastName: editLastName,
                         email: editEmail,
                         phone: editPhone,
-                        profilePicture: editProfilePicture,
                         password: editPassword || undefined
                       });
                       if (res.success) {
-                        setEmployee(res.employee);
-                        localStorage.setItem('employee', JSON.stringify(res.employee));
+                        // Merge updated picture URL with server's returned employee data
+                        const updatedEmployee = { ...res.employee, profilePicture: newPictureUrl };
+                        setEmployee(updatedEmployee);
+                        localStorage.setItem('employee', JSON.stringify(updatedEmployee));
                         setProfileEditSuccess('Profile updated successfully!');
+                        setEditPictureFile(null);
+                        setEditPicturePreview('');
                         setEditProfileMode(false);
                       }
                     } catch (err) {
@@ -1375,35 +1437,54 @@ export default function EmployeeDashboard() {
 
                   {/* Profile Picture Upload */}
                   <div className="flex flex-col items-center gap-2 pb-2">
-                    {editProfilePicture ? (
+                    {/* Show preview of new file, or the existing saved picture */}
+                    {editPicturePreview ? (
+                      <div className="relative">
+                        <img 
+                          src={editPicturePreview} 
+                          alt="New Preview" 
+                          className="w-20 h-20 rounded-full object-cover border-2 border-brand-red shadow-md"
+                        />
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-brand-red text-white text-[8px] font-extrabold px-2 py-0.5 rounded-full whitespace-nowrap">New</span>
+                      </div>
+                    ) : editProfilePicture ? (
                       <img 
-                        src={editProfilePicture} 
-                        alt="Preview" 
-                        className="w-16 h-16 rounded-full object-cover border-2 border-brand-red shadow-sm"
+                        src={editProfilePicture.startsWith('/uploads/') ? editProfilePicture : editProfilePicture} 
+                        alt="Current Profile" 
+                        className="w-20 h-20 rounded-full object-cover border-2 border-slate-300 shadow-sm"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
-                        <User size={28} />
+                      <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
+                        <User size={30} />
                       </div>
                     )}
-                    <label className="text-[10px] font-extrabold text-[#E31C1C] cursor-pointer hover:underline">
-                      Upload Picture
+                    <label className="flex items-center gap-1.5 bg-rose-50 border border-rose-100 text-[#E31C1C] text-[10px] font-extrabold px-3 py-1.5 rounded-xl cursor-pointer hover:bg-rose-100 transition-colors active:scale-95">
+                      <span>📷 {editPictureFile ? 'Change Photo' : 'Upload Photo'}</span>
                       <input 
                         type="file" 
-                        accept="image/*" 
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" 
                         onChange={(e) => {
                           const file = e.target.files[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setEditProfilePicture(reader.result);
-                            };
-                            reader.readAsDataURL(file);
+                            if (file.size > 5 * 1024 * 1024) {
+                              setProfileEditError('Image too large. Please choose an image under 5MB.');
+                              return;
+                            }
+                            setEditPictureFile(file);
+                            // Show local preview immediately
+                            const previewUrl = URL.createObjectURL(file);
+                            setEditPicturePreview(previewUrl);
+                            setProfileEditError('');
                           }
                         }}
                         className="hidden" 
                       />
                     </label>
+                    {editPictureFile && (
+                      <p className="text-[9px] text-slate-400 font-semibold text-center">
+                        {editPictureFile.name} ({(editPictureFile.size / 1024).toFixed(0)} KB) — will upload on save
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1472,10 +1553,10 @@ export default function EmployeeDashboard() {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-2.5 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold cursor-pointer border-0"
-                      disabled={btnLoading}
+                      className="flex-1 py-2.5 bg-[#E31C1C] hover:bg-[#b81414] text-white rounded-xl text-xs font-bold cursor-pointer border-0 disabled:opacity-60"
+                      disabled={btnLoading || pictureUploading}
                     >
-                      {btnLoading ? 'Saving...' : 'Save Profile'}
+                      {pictureUploading ? 'Uploading Photo...' : btnLoading ? 'Saving...' : 'Save Profile'}
                     </button>
                   </div>
                 </form>

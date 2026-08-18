@@ -17,7 +17,8 @@ const {
   updateHoliday,
   deleteHoliday,
   getAttendanceSettings,
-  updateAttendanceSettings
+  updateAttendanceSettings,
+  updateEmployeeTiming
 } = require('../../controllers/admin/adminController');
 const { protect } = require('../../middleware/authMiddleware');
 
@@ -28,6 +29,7 @@ router.post('/employees/create', protect, createEmployee);
 router.get('/employees', protect, getActiveEmployees);
 router.put('/employees/:id/status', protect, updateEmployeeStatus);
 router.put('/employees/:id', protect, updateEmployeeProfileByAdmin);
+router.put('/employees/:id/attendance-timing', protect, updateEmployeeTiming);
 router.get('/notifications', protect, getAdminNotifications);
 router.put('/notifications/read', protect, markAdminNotificationsRead);
 router.get('/attendance/report', protect, getEmployeeMonthlyReport);

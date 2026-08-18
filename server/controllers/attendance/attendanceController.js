@@ -195,7 +195,13 @@ exports.checkInEmployee = async (req, res, next) => {
     const minutes = istTime.getUTCMinutes();
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-    const lateThresholdStr = settings?.attendance?.lateThresholdTime || '10:15';
+    const employeeSchedule = req.employee.attendanceSchedule;
+    let lateThresholdStr = settings?.attendance?.lateThresholdTime || '10:15';
+    
+    if (employeeSchedule && employeeSchedule.enabled && employeeSchedule.lateAfter) {
+      lateThresholdStr = employeeSchedule.lateAfter;
+    }
+
     const [threshH, threshM] = lateThresholdStr.split(':').map(Number);
     const isLate = (hours * 60 + minutes) > (threshH * 60 + (threshM || 0));
 
@@ -283,9 +289,14 @@ exports.checkOutEmployee = async (req, res, next) => {
     const roundedHours = Math.round(durationHours * 10) / 10;
     attendance.workingHours = roundedHours;
 
-    const halfDayThreshold = settings?.attendance?.halfDayThresholdHours || 4.0;
+    const employeeSchedule = req.employee.attendanceSchedule;
+    let halfDayThreshold = settings?.attendance?.halfDayThresholdHours || 4.0;
+    
+    if (employeeSchedule && employeeSchedule.enabled && employeeSchedule.halfDayHours) {
+      halfDayThreshold = employeeSchedule.halfDayHours;
+    }
 
-    // If employee worked less than 4 hours, mark as Half Day
+    // If employee worked less than threshold hours, mark as Half Day
     if (durationHours < halfDayThreshold) {
       attendance.status = 'Half Day';
     }
@@ -313,6 +324,24 @@ exports.getDailyAttendanceSummary = async (req, res, next) => {
   try {
     const { start: todayStart, end: todayEnd } = getIstTodayBoundaries();
 
+    const Holiday = require('../../models/Holiday');
+    const Leave = require('../../models/Leave');
+
+    const holiday = await Holiday.findOne({
+      date: { $gte: todayStart, $lte: todayEnd }
+    });
+
+    const approvedLeaves = await Leave.find({
+      status: 'Approved',
+      startDate: { $lte: todayEnd },
+      endDate: { $gte: todayStart }
+    });
+
+    const leavesMap = {};
+    approvedLeaves.forEach(lv => {
+      leavesMap[lv.employee.toString()] = lv;
+    });
+
     const employees = await Employee.find({ status: { $in: ['active', 'approved'] } });
     const logs = await Attendance.find({
       date: { $gte: todayStart, $lte: todayEnd }
@@ -325,6 +354,22 @@ exports.getDailyAttendanceSummary = async (req, res, next) => {
 
     const summary = employees.map(emp => {
       const log = logMap[emp._id.toString()];
+      const leave = leavesMap[emp._id.toString()];
+
+      let status = 'Absent';
+      let remarks = '-';
+
+      if (holiday) {
+        status = 'Holiday';
+        remarks = holiday.reason || 'Official Holiday';
+      } else if (leave) {
+        status = 'Paid Leave';
+        remarks = `${leave.leaveType} Leave (${leave.reason || 'Approved'})`;
+      } else if (log) {
+        status = log.status;
+        remarks = log.remarks || '-';
+      }
+
       return {
         id: emp._id,
         name: emp.name,
@@ -334,10 +379,10 @@ exports.getDailyAttendanceSummary = async (req, res, next) => {
         department: emp.department || 'Unassigned',
         designation: emp.designation,
         profilePicture: emp.profilePicture,
-        status: log ? log.status : 'Absent',
+        status,
         checkIn: log ? log.checkIn || '-' : '-',
         checkOut: log ? log.checkOut || '-' : '-',
-        remarks: log ? log.remarks || '-' : '-'
+        remarks
       };
     });
 

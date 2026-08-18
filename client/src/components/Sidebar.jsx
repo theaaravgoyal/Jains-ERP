@@ -30,7 +30,7 @@ const Sidebar = () => {
     <aside
       className="
         fixed left-4 top-1/2 -translate-y-1/2 z-50
-        flex flex-col items-center gap-1
+        hidden md:flex flex-col items-center gap-1
         bg-white/90 backdrop-blur-md
         border border-slate-200
         rounded-2xl

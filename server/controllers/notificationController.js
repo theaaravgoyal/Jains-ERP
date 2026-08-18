@@ -128,8 +128,18 @@ const markRead = async (req, res) => {
     const userId = req.user.id || req.user._id;
     const { id } = req.params;
 
+    const query = { _id: id };
+    if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
+      query.$or = [
+        { targetUser: userId },
+        { isAdmin: true }
+      ];
+    } else {
+      query.targetUser = userId;
+    }
+
     const notification = await Notification.findOneAndUpdate(
-      { _id: id, targetUser: userId },
+      query,
       { isRead: true, readAt: new Date() },
       { returnDocument: 'after' }
     );
@@ -149,8 +159,18 @@ const markAllRead = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
     
+    const query = { isRead: false };
+    if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
+      query.$or = [
+        { targetUser: userId },
+        { isAdmin: true }
+      ];
+    } else {
+      query.targetUser = userId;
+    }
+
     await Notification.updateMany(
-      { targetUser: userId, isRead: false },
+      query,
       { isRead: true, readAt: new Date() }
     );
 
@@ -166,7 +186,17 @@ const deleteNotification = async (req, res) => {
     const userId = req.user.id || req.user._id;
     const { id } = req.params;
 
-    const deleted = await Notification.findOneAndDelete({ _id: id, targetUser: userId });
+    const query = { _id: id };
+    if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
+      query.$or = [
+        { targetUser: userId },
+        { isAdmin: true }
+      ];
+    } else {
+      query.targetUser = userId;
+    }
+
+    const deleted = await Notification.findOneAndDelete(query);
     if (!deleted) {
       return sendError(res, 'Notification not found or unauthorized access.', [], 404);
     }

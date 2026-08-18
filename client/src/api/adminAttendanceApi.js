@@ -61,6 +61,11 @@ export const adminAttendanceApi = {
     return data;
   },
 
+  updateEmployeeTiming: async (id, timingData) => {
+    const { data } = await axiosInstance.put(`/admin/employees/${id}/attendance-timing`, timingData);
+    return data;
+  },
+
   getNotifications: async () => {
     const { data } = await axiosInstance.get('/admin/notifications');
     return data;

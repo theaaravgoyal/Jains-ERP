@@ -40,8 +40,7 @@ const EmployeeSchema = new mongoose.Schema(
     },
     profilePicture: {
       type: String,
-      default: '',
-      select: false
+      default: ''
     },
     status: {
       type: String,
@@ -55,6 +54,13 @@ const EmployeeSchema = new mongoose.Schema(
     dateOfJoining: {
       type: Date,
       default: Date.now
+    },
+    attendanceSchedule: {
+      enabled: { type: Boolean, default: false },
+      startTime: { type: String, default: '' },
+      endTime: { type: String, default: '' },
+      lateAfter: { type: String, default: '' },
+      halfDayHours: { type: Number, default: 4 }
     }
   },
   { timestamps: true }

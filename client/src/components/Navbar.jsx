@@ -148,14 +148,14 @@ const Navbar = () => {
   };
 
   return (
-    <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-4 h-[8vh] shrink-0 shadow-sm shadow-slate-100/40">
+    <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200 px-10 py-10 flex items-center justify-between gap-4 h-14 shrink-0 shadow-sm shadow-slate-100/40">
       {/* Brand */}
       <div className="flex items-center gap-3">
         <Link to={ROUTES.DASHBOARD} className="flex items-center gap-2 hover:opacity-90 transition-opacity">
           <img 
             src="/jains.svg" 
             alt="Jains Computers" 
-            className="h-9 md:h-10 w-auto object-contain"
+            className="h-6 md:h-7 w-auto object-contain"
             onError={(e) => {
               e.target.onerror = null;
             }}

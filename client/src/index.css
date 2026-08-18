@@ -11,6 +11,16 @@
   --color-sidebar-border: #f5dde5;
 }
 
+/* Cross-platform scaling normalization — prevents Windows 125%+ display scaling overflow */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+*, *::before, *::after {
+  min-width: 0;
+}
+
 body {
   background-color: #ffffff;
 }

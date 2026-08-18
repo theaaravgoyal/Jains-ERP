@@ -135,7 +135,7 @@ export default function Dashboard() {
   const absentCount = absentEmployees.length;
 
   return (
-    <div className="bg-white h-[85vh] overflow-hidden text-slate-800 font-sans flex flex-col">
+    <div className="bg-white text-slate-800 font-sans flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div>
@@ -153,9 +153,9 @@ export default function Dashboard() {
       </div>
 
       {/* Top Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 shrink-0">
+      <div className="flex flex-wrap gap-6 mb-6">
         {/* Card 1 */}
-        <div className="bg-[#e31b23] rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between h-28">
+        <div className="flex-1 min-w-[200px] bg-[#e31b23] rounded-2xl px-5 py-5 shadow-lg relative overflow-hidden flex flex-col justify-between h-fit">
           <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
           <div className="flex justify-between items-start z-10">
             <h3 className="text-white font-bold text-xs tracking-wider">TOTAL INQUIRIES</h3>
@@ -176,7 +176,7 @@ export default function Dashboard() {
         </div>
 
         {/* Card 2 */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col justify-between h-28">
+        <div className="flex-1 min-w-[200px] bg-white rounded-2xl px-5 py-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col justify-between h-fit">
           <div className="flex justify-between items-start">
             <h3 className="text-slate-500 font-bold text-xs tracking-wider">ADMISSIONS COMPLETED</h3>
             <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-100">
@@ -194,7 +194,7 @@ export default function Dashboard() {
         </div>
 
         {/* Card 3 */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col justify-between h-28">
+        <div className="flex-1 min-w-[200px] bg-white rounded-2xl px-5 py-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col justify-between h-fit">
           <div className="flex justify-between items-start">
             <h3 className="text-slate-500 font-bold text-xs tracking-wider">SCHEDULED FOLLOW-UPS</h3>
             <div className="bg-amber-50 p-2 rounded-xl border border-amber-100">
@@ -212,7 +212,7 @@ export default function Dashboard() {
         </div>
 
         {/* Card 4 */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col justify-between h-28">
+        <div className="flex-1 min-w-[200px] bg-white rounded-2xl px-5 py-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col justify-between h-fit">
           <div className="flex justify-between items-start">
             <h3 className="text-slate-500 font-bold text-xs tracking-wider">SUCCESS RATE</h3>
             <div className="bg-indigo-50 p-2 rounded-xl border border-indigo-100">
@@ -231,10 +231,10 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 flex-1 min-h-0">
+      <div className="flex flex-col xl:flex-row gap-6 flex-1 min-h-0">
         
         {/* Left Column - Chart */}
-        <div className="xl:col-span-2 bg-white rounded-2xl p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-full overflow-hidden">
+        <div className="xl:flex-[2] min-w-0 bg-white rounded-2xl p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col overflow-hidden">
           <div className="flex justify-between items-start mb-8">
             <div>
               <h2 className="text-sm font-black text-slate-800 uppercase tracking-wide">INQUIRY VOLUME OVERVIEW</h2>
@@ -280,10 +280,10 @@ export default function Dashboard() {
         </div>
 
         {/* Right Column */}
-        <div className="xl:col-span-1 flex flex-col gap-6 h-full overflow-hidden">
+        <div className="xl:flex-1 min-w-0 flex flex-col gap-6 overflow-hidden">
           
           {/* Recent Leads */}
-          <div className="bg-white rounded-2xl p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex-1 overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex-1 overflow-hidden max-h-[30vh] flex flex-col">
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h2 className="text-sm font-black text-slate-800 uppercase tracking-wide">RECENT LEADS OVERVIEW</h2>
@@ -330,7 +330,7 @@ export default function Dashboard() {
           </div>
 
           {/* Staff Attendance */}
-          <div className="bg-white rounded-2xl max-h-[15rem] p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl max-h-[30vh] p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 overflow-hidden flex flex-col">
             <div className="flex justify-between items-start mb-5 pb-4 border-b border-slate-100">
               <div>
                 <h2 className="text-sm font-black text-slate-800 uppercase tracking-wide">STAFF ATTENDANCE OVERVIEW</h2>
@@ -349,12 +349,12 @@ export default function Dashboard() {
                   <User size={14} className="stroke-[2.5]" />
                   <span className="text-xs font-black tracking-wide">PRESENT STAFF ({presentCount})</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="flex flex-wrap gap-2.5">
                   {presentEmployees.map((emp) => (
                     <div 
                       key={emp.id}
                       onClick={() => toggleAttendance(emp.id)}
-                      className="bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="flex-1 min-w-[140px] bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors"
                     >
                       <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                       <span className="text-xs font-bold text-slate-700 truncate">
@@ -371,12 +371,12 @@ export default function Dashboard() {
                   <UserX size={14} className="stroke-[2.5]" />
                   <span className="text-xs font-black tracking-wide">ABSENT STAFF ({absentCount})</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="flex flex-wrap gap-2.5">
                   {absentEmployees.map((emp) => (
                     <div 
                       key={emp.id}
                       onClick={() => toggleAttendance(emp.id)}
-                      className="bg-rose-50/50 hover:bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="flex-1 min-w-[140px] bg-rose-50/50 hover:bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors"
                     >
                       <div className="w-2 h-2 rounded-full bg-rose-500"></div>
                       <span className="text-xs font-bold text-slate-700 truncate">

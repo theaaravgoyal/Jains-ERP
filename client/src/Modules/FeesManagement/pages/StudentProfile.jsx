@@ -223,7 +223,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
       </div>
 
       {/* Sticky Fee Summary Cards */}
-      <div className="sticky top-0 z-10 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 bg-slate-50/90 backdrop-blur-md py-3 border-b border-[#EBEAE6] -mx-4 px-4">
+      <div className="sticky top-0 z-10 flex flex-wrap gap-3 bg-slate-50/90 backdrop-blur-md py-3 border-b border-[#EBEAE6] -mx-4 px-4">
         <div className="bg-white border border-[#EBEAE6] rounded-xl p-3 shadow-xs space-y-0.5 min-w-[120px]">
           <span className="text-[9px] text-slate-400 uppercase font-extrabold tracking-wider block">Total Course Fee</span>
           <h4 className="text-xs font-extrabold text-slate-800 truncate">{formatINR(studentProfile.feePlan?.totalFees)}</h4>
@@ -261,7 +261,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
       {studentError && <ErrorState message={studentError} onRetry={handleRefreshAll} />}
 
       {/* Profile Details Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         
         {/* Left Side: General Profile Info Card */}
         <div className="space-y-6">
@@ -309,7 +309,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
         </div>
 
         {/* Right Side: Installments & Logs View Grid */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:flex-[2] min-w-0 space-y-6">
           
           {/* Installments Table Card */}
           <div className="bg-white border border-[#EBEAE6] rounded-2xl p-5 shadow-sm space-y-4">
@@ -441,7 +441,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
 
             <form onSubmit={handleCollectPaymentSubmit} className="space-y-4 text-xs font-bold text-slate-655">
               
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="flex flex-wrap gap-3.5">
                 <div className="space-y-1">
                   <label className="block text-[10px] uppercase text-slate-400 font-bold">Payment Type</label>
                   <select 
@@ -515,7 +515,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
                 return null;
               })()}
 
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="flex flex-wrap gap-3.5">
                 <div className="space-y-1">
                   <label className="block text-[10px] uppercase text-slate-400 font-bold">Payment Amount (₹) *</label>
                   <input 
@@ -557,7 +557,7 @@ const StudentProfile = ({ studentId, onNavigate }) => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsPaymentModalOpen(false)}

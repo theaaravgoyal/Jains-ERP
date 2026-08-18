@@ -46,7 +46,7 @@ export default function LeadStats({ counts, activeStatusFilter, setActiveStatusF
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="flex flex-wrap gap-4">
       {categories.map((cat) => {
         const Icon = cat.icon;
         const isActive = activeStatusFilter === cat.status;
@@ -56,7 +56,7 @@ export default function LeadStats({ counts, activeStatusFilter, setActiveStatusF
           <button
             key={cat.status}
             onClick={() => setActiveStatusFilter(isActive ? null : cat.status)}
-            className={`p-4 rounded-2xl text-left cursor-pointer transition-all duration-200 group flex items-center justify-between h-24 bg-white border shadow-sm relative overflow-hidden ${
+            className={`flex-1 min-w-[150px] p-4 rounded-2xl text-left cursor-pointer transition-all duration-200 group flex items-center justify-between h-24 bg-white border shadow-sm relative overflow-hidden ${
               isActive 
                 ? `${cat.activeBorder} border-transparent` 
                 : 'border-[#E8E6E1] hover:border-slate-350 hover:shadow-md'

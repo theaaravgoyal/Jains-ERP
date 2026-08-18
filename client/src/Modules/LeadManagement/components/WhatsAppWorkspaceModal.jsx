@@ -92,7 +92,7 @@ export default function WhatsAppWorkspaceModal({ lead, operatingStaff, onClose, 
         </div>
 
         {/* 3. Modal Workspace Body */}
-        <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 items-start flex-1 min-h-0">
+        <div className="p-6 overflow-y-auto flex flex-col md:flex-row gap-6 items-start flex-1 min-h-0">
           
           {/* Left Column: Selectors */}
           <div className="space-y-6">

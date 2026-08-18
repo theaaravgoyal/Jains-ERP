@@ -26,7 +26,7 @@ const StudentLedgerView = ({ ledgerData, formatDate, formatINR }) => {
   return (
     <div className="space-y-6">
       {/* Student Meta Profile Info Card */}
-      <div className="bg-[#FAF9F6]/40 border border-[#EBEAE6] p-5 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-6 text-xs font-semibold">
+      <div className="bg-[#FAF9F6]/40 border border-[#EBEAE6] p-5 rounded-2xl flex flex-wrap gap-6 text-xs font-semibold">
         <div className="space-y-2">
           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Student Bio Details</span>
           <div className="space-y-0.5">
@@ -386,7 +386,7 @@ const Reports = () => {
 
       {/* Summary Cards Row */}
       {!summaryLoading && summary && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print:hidden">
+        <div className="flex flex-wrap gap-4 print:hidden">
           <StatsCard title="Total Collection" value={formatINR(summary.totalCollection)} icon={TrendingUp} trend="Voucher Sum" trendType="up" accentColor="from-blue-500 to-sky-500" />
           <StatsCard title="Total Pending" value={formatINR(summary.totalPending)} icon={AlertCircle} trend="Dues Remaining" trendType="down" accentColor="from-rose-500 to-orange-500" />
           <StatsCard title="Total Overdue" value={formatINR(summary.totalOverdue)} icon={AlertCircle} trend="Immediate Callbacks" trendType="down" accentColor="from-red-500 to-rose-600" />
@@ -398,7 +398,7 @@ const Reports = () => {
 
       {/* Query filters and Report selector */}
       <div className="bg-white border border-[#EBEAE6] p-4 rounded-2xl shadow-sm space-y-4 print:hidden">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 text-xs font-bold text-slate-600">
+        <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-600">
           
           {/* Report Selector */}
           <div className="space-y-1">

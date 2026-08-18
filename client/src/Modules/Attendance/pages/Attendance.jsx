@@ -1224,7 +1224,7 @@ export default function Attendance() {
             </Card>
 
             {/* 2. Side-By-Side Bottom Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex flex-col md:flex-row gap-6">
               
               {/* Table Card (Spans 3/3, extended because Add New Profile is removed) */}
               <Card className="md:col-span-3 bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs flex flex-col justify-between">
@@ -2005,7 +2005,7 @@ export default function Attendance() {
               ) : (
                 <>
                   {/* Stats Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                  <div className="flex flex-wrap gap-2.5">
                     <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl text-center">
                       <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider block">Presents</span>
                       <strong className="text-emerald-700 text-base font-black mt-1 block">{reportStats.presents}</strong>

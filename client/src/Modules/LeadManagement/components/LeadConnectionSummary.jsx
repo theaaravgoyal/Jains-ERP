@@ -54,7 +54,7 @@ export default function LeadConnectionSummary({ activities = [] }) {
       </div>
 
       {/* Staff Grid - Khushi Soni Only */}
-      <div className="grid grid-cols-1 max-w-2xl gap-8">
+      <div className="flex flex-col max-w-2xl gap-8">
 
         {/* Khushi Soni Card */}
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
@@ -79,8 +79,8 @@ export default function LeadConnectionSummary({ activities = [] }) {
             </div>
 
             {/* Metrics Grid */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[180px] bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
                 <div className="p-2 rounded-xl bg-emerald-100 text-emerald-600">
                   <ClipboardList size={16} />
                 </div>
@@ -89,7 +89,7 @@ export default function LeadConnectionSummary({ activities = [] }) {
                   <span className="text-base font-black text-slate-700 leading-none block mt-1">{stats['Khushi Soni'].total}</span>
                 </div>
               </div>
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
+              <div className="flex-1 min-w-[180px] bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
                 <div className="p-2 rounded-xl bg-emerald-100 text-emerald-600">
                   <CheckCircle2 size={16} />
                 </div>
@@ -98,7 +98,7 @@ export default function LeadConnectionSummary({ activities = [] }) {
                   <span className="text-base font-black text-slate-700 leading-none block mt-1">{stats['Khushi Soni'].connected}</span>
                 </div>
               </div>
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
+              <div className="flex-1 min-w-[180px] bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
                 <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
                   <MessageSquare size={16} />
                 </div>
@@ -107,7 +107,7 @@ export default function LeadConnectionSummary({ activities = [] }) {
                   <span className="text-base font-black text-slate-700 leading-none block mt-1">{stats['Khushi Soni'].messages}</span>
                 </div>
               </div>
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
+              <div className="flex-1 min-w-[180px] bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center gap-3 shadow-inner">
                 <div className="p-2 rounded-xl bg-rose-100 text-rose-600">
                   <XCircle size={16} />
                 </div>

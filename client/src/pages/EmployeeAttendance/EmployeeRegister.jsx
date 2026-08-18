@@ -189,7 +189,7 @@ export default function EmployeeRegister() {
               <span className="text-[9px] font-black text-slate-400 tracking-widest uppercase">Profile Picture</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-wrap gap-3">
               <div>
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-wide">First Name</label>
                 <div className="relative">
@@ -221,7 +221,7 @@ export default function EmployeeRegister() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-wrap gap-3">
               <div>
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-wide">Department</label>
                 <div className="relative">

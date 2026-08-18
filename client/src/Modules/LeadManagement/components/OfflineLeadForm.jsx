@@ -108,7 +108,7 @@ export default function OfflineLeadForm({ onSubmit, editingLead, onCancel }) {
           Lead Information
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
 
           {/* 1. Name */}
           <div>

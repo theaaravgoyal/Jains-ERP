@@ -252,17 +252,17 @@ const Payments = ({ studentId, onNavigate }) => {
         </div>
       )}
 
-      <form onSubmit={handleCollectPayment} className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs font-bold text-slate-655">
+      <form onSubmit={handleCollectPayment} className="flex flex-col lg:flex-row gap-6 text-xs font-bold text-slate-655">
         
         {/* Left Form fields panel (Spans 2/3) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:flex-[2] min-w-0 space-y-6">
           <div className="bg-white border border-[#EBEAE6] rounded-2xl p-5 shadow-sm space-y-5">
             <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider pb-2 border-b border-[#FAF9F6] flex items-center gap-1.5">
               <User size={14} className="text-amber-500" />
               <span>Student Account Registry</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-wrap gap-4">
               
               {/* Student Dropdown Selector */}
               <div className="space-y-1">

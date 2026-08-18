@@ -202,7 +202,7 @@ const Dashboard = ({ onNavigate }) => {
 
       {/* Loading Skeleton / Dashboard Summary stats grid */}
       {loading && !summary ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+        <div className="flex flex-wrap gap-4">
           {Array.from({ length: 12 }).map((_, idx) => (
             <div key={idx} className="bg-white border border-[#EBEAE6] rounded-2xl p-4.5 shadow-sm animate-pulse space-y-2.5">
               <div className="h-2 bg-slate-100 rounded w-1/2" />
@@ -212,7 +212,7 @@ const Dashboard = ({ onNavigate }) => {
         </div>
       ) : (
         summary && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          <div className="flex flex-wrap gap-4">
             <StatsCard title="Total Students" value={summary.totalStudents} icon={Users} trend="Active + Inactive" trendType="neutral" accentColor="from-blue-500 to-sky-500" />
             <StatsCard title="Active Students" value={summary.activeStudents} icon={Users} trend="Current Enrolled" trendType="up" accentColor="from-emerald-500 to-teal-500" />
             <StatsCard title="Inactive Students" value={summary.inactiveStudents} icon={Users} trend="Soft Deleted / Terminated" trendType="down" accentColor="from-slate-500 to-slate-700" />
@@ -230,10 +230,10 @@ const Dashboard = ({ onNavigate }) => {
       )}
 
       {/* Graphic charts section (Grid 2/3 and 1/3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         
         {/* Monthly Collection Trend Bar Chart (Spans 2/3) */}
-        <div className="lg:col-span-2 bg-white border border-[#EBEAE6] rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="lg:flex-[2] min-w-0 bg-white border border-[#EBEAE6] rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-[#FAF9F6] pb-2">
             <div className="space-y-0.5">
               <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Monthly Collections</h3>
@@ -368,10 +368,10 @@ const Dashboard = ({ onNavigate }) => {
       </div>
 
       {/* Lists & timelines grids */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="flex flex-col xl:flex-row gap-6">
         
         {/* Left Column tables list (Spans 2/3) */}
-        <div className="xl:col-span-2 space-y-6">
+        <div className="xl:flex-[2] min-w-0 space-y-6">
           
           {/* Overdue Students Table */}
           <div className="bg-white border border-[#EBEAE6] rounded-2xl p-5 shadow-sm space-y-4">
@@ -611,7 +611,7 @@ const Dashboard = ({ onNavigate }) => {
         </div>
 
         {/* Right Column: Timeline activities (Spans 1/3) */}
-        <div className="space-y-6 lg:col-span-1">
+        <div className="space-y-6 xl:flex-1">
           
           <div className="bg-white border border-[#EBEAE6] rounded-2xl p-5 shadow-sm space-y-5">
             <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider pb-2 border-b border-[#FAF9F6] flex items-center gap-1.5">

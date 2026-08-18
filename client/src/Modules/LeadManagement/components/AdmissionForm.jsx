@@ -250,7 +250,7 @@ export default function AdmissionForm({ onSubmit, editingStudent, onCancel }) {
               </div>
 
               {/* Educational Qualification — full width */}
-              <div className="col-span-2" ref={qualRef}>
+              <div className="w-full" ref={qualRef}>
                 <label className={labelCls}>Educational Qualification</label>
                 <div className="relative">
                   <input
@@ -277,11 +277,11 @@ export default function AdmissionForm({ onSubmit, editingStudent, onCancel }) {
                 </div>
               </div>
 
-              <div className="col-span-2">
+              <div className="w-full">
                 <label className={labelCls}>Parent's / Father's Occupation</label>
                 <input className={inputCls} placeholder="e.g. Business, Govt. Servant, Private Sector, Agriculturist" value={form.parentOccupation} onChange={e => set('parentOccupation', e.target.value)} />
               </div>
-              <div className="col-span-2">
+              <div className="w-full">
                 <label className={labelCls}>Full Address</label>
                 <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Enter house no, street name, city, state" value={form.address} onChange={e => set('address', e.target.value)} />
               </div>
@@ -300,12 +300,12 @@ export default function AdmissionForm({ onSubmit, editingStudent, onCancel }) {
             </div>
             <div>
               <label className={`${labelCls} mb-3`}>Learning Mode Preference <span className="text-[#E31C1C]">*</span></label>
-              <div className="grid grid-cols-3 border border-[#E3E1DC] rounded-xl overflow-hidden">
+              <div className="flex gap-3 px-5 py-2 border border-[#E3E1DC] rounded-xl overflow-hidden">
                 {['Offline', 'Online', 'Hybrid'].map(mode => (
                   <button
                     key={mode}
                     onClick={() => set('learningMode', mode)}
-                    className={`py-3 text-xs font-black tracking-wider transition-all ${
+                    className={`py-2 rounded-md px-2 text-xs font-black tracking-wider transition-all ${
                       form.learningMode === mode
                         ? 'bg-[#E31C1C] text-white'
                         : 'bg-white text-slate-600 hover:bg-slate-50'
@@ -324,7 +324,7 @@ export default function AdmissionForm({ onSubmit, editingStudent, onCancel }) {
               <ShieldCheck size={15} className="text-[#E31C1C]" />
               Identity Details
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-wrap gap-4">
               <div>
                 <label className={labelCls}>Legal ID Document Type</label>
                 <select className={inputCls} value={form.idType} onChange={e => set('idType', e.target.value)}>
@@ -464,7 +464,7 @@ export default function AdmissionForm({ onSubmit, editingStudent, onCancel }) {
               <CreditCard size={15} className="text-[#E31C1C]" />
               Payment Details
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="flex flex-wrap gap-3 mb-4">
               <div>
                 <label className={labelCls}>Total Course Fees (₹) <span className="text-[#E31C1C]">*</span></label>
                 <input className={inputCls} placeholder="Enter total tuition fee" type="number" value={form.totalFees} onChange={e => set('totalFees', e.target.value)} />

@@ -2,6 +2,9 @@
   "name": "erp-portal-root",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "workspaces": [
     "server"
   ],
@@ -23,6 +26,7 @@
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.7.4",
+    "multer": "^2.2.0",
     "nodemailer": "^9.0.5"
   }
 }

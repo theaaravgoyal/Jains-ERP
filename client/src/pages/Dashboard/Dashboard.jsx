@@ -342,7 +342,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 min-h-0">
+            <div className="overflow-y-auto flex-1 flex-wrap min-h-0">
               {/* Present Staff */}
               <div className="mb-5">
                 <div className="flex items-center gap-2 text-emerald-600 mb-3">
@@ -354,10 +354,10 @@ export default function Dashboard() {
                     <div 
                       key={emp.id}
                       onClick={() => toggleAttendance(emp.id)}
-                      className="flex-1 min-w-[140px] bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="flex min-w-[140px] w-fit bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors"
                     >
                       <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                      <span className="text-xs font-bold text-slate-700 truncate">
+                      <span className="text-xs text-nowrap font-bold text-slate-700">
                         {emp.lastName ? `${emp.name} ${emp.lastName}` : emp.name}
                       </span>
                     </div>

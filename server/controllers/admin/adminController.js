@@ -664,13 +664,19 @@ exports.deleteHoliday = async (req, res, next) => {
 
     // Broadcast holiday cancellation notification to active employees
     try {
+      const holidayDateFormatted = new Date(holiday.date).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Asia/Kolkata'
+      });
       const employees = await Employee.find({ status: { $in: ['active', 'approved'] } });
       const notificationsToInsert = employees.map((emp) => ({
         recipient: emp._id,
         targetUser: emp._id,
         senderName: 'Admin',
         title: 'Holiday Cancelled',
-        message: `Holiday cancelled: ${holiday.reason || 'Holiday'}.`,
+        message: `Holiday for ${holidayDateFormatted} (${holiday.reason || 'Office Closure'}) has been cancelled by Admin.`,
         type: 'HOLIDAY_CANCELLED',
         module: 'Attendance',
         priority: 'MEDIUM'

@@ -27,8 +27,14 @@ exports.applyLeave = async (req, res, next) => {
     await Notification.create({
       isAdmin: true,
       senderName: `${emp.name} ${emp.lastName}`,
+      title: 'New Leave Request',
       message: `${emp.name} ${emp.lastName} applied for a ${leaveType} leave.`,
-      type: 'leave_request'
+      type: 'leave_request',
+      module: 'Attendance',
+      priority: 'HIGH',
+      referenceId: leave._id,
+      referenceType: 'Leave',
+      actionUrl: '/attendance'
     });
 
     return res.status(201).json({

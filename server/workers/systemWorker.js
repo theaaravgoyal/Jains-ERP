@@ -16,7 +16,14 @@ const systemWorker = new Worker(
         console.log('[SystemWorker] Running system routine cleanup...');
         // Clean temporary caches
         await cacheHelper.delByPattern('temp:*');
-        return { success: true, message: 'Cleanup complete.' };
+        
+        // Retention policy: Clean notifications older than 7 days
+        const Notification = require('../models/Notification');
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const deleteResult = await Notification.deleteMany({ createdAt: { $lt: sevenDaysAgo } });
+        console.log(`[SystemWorker] Auto-deleted ${deleteResult.deletedCount} notifications older than 7 days.`);
+        
+        return { success: true, message: `Cleanup complete. Deleted ${deleteResult.deletedCount} notifications.` };
       }
 
       if (action === 'FLUSH_CACHE') {

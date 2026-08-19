@@ -58,15 +58,40 @@ const DatePicker = ({
 
   const handleTextChange = (e) => {
     const raw = e.target.value;
-    setDisplayText(raw);
     
     if (raw === '') {
+      setDisplayText('');
       onChange && onChange('');
       return;
     }
 
+    // Auto-slash formatting logic
+    const clean = raw.replace(/\D/g, '');
+    const isDeleting = displayText && raw.length < displayText.length;
+    let formatted = '';
+
+    if (isDeleting) {
+      if (clean.length <= 2) {
+        formatted = clean;
+      } else if (clean.length <= 4) {
+        formatted = `${clean.slice(0, 2)}/${clean.slice(2)}`;
+      } else {
+        formatted = `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4, 8)}`;
+      }
+    } else {
+      if (clean.length <= 2) {
+        formatted = clean.length === 2 ? `${clean}/` : clean;
+      } else if (clean.length <= 4) {
+        formatted = clean.length === 4 ? `${clean.slice(0, 2)}/${clean.slice(2)}/` : `${clean.slice(0, 2)}/${clean.slice(2)}`;
+      } else {
+        formatted = `${clean.slice(0, 2)}/${clean.slice(2, 4)}/${clean.slice(4, 8)}`;
+      }
+    }
+
+    setDisplayText(formatted);
+
     // If matches DD/MM/YYYY
-    const parts = raw.split('/');
+    const parts = formatted.split('/');
     if (parts.length === 3 && parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
       const day = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10);
@@ -75,8 +100,8 @@ const DatePicker = ({
         const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         onChange && onChange(iso);
       }
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-      onChange && onChange(raw);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(formatted)) {
+      onChange && onChange(formatted);
     }
   };
 

@@ -18,14 +18,23 @@ const getNotifications = async (req, res) => {
       dateFilter 
     } = req.query;
 
+    // Async retention policy cleanup (7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    Notification.deleteMany({ createdAt: { $lt: sevenDaysAgo } }).catch(err => {
+      console.error('[Notification Retention Cleanup Error]', err.message);
+    });
+
+    const mongoose = require('mongoose');
+    const safeUserId = mongoose.Types.ObjectId.isValid(userId) ? userId : new mongoose.Types.ObjectId();
+
     const queryFilter = {};
     if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
       queryFilter.$or = [
-        { targetUser: userId },
+        { targetUser: safeUserId },
         { isAdmin: true }
       ];
     } else {
-      queryFilter.targetUser = userId;
+      queryFilter.targetUser = safeUserId;
     }
 
     // Apply exact matches
@@ -86,14 +95,17 @@ const getUnreadCount = async (req, res) => {
     const userId = req.user.id || req.user._id;
     const { module } = req.query;
 
+    const mongoose = require('mongoose');
+    const safeUserId = mongoose.Types.ObjectId.isValid(userId) ? userId : new mongoose.Types.ObjectId();
+
     const queryFilter = { isRead: false };
     if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
       queryFilter.$or = [
-        { targetUser: userId },
+        { targetUser: safeUserId },
         { isAdmin: true }
       ];
     } else {
-      queryFilter.targetUser = userId;
+      queryFilter.targetUser = safeUserId;
     }
 
     if (module) queryFilter.module = module;
@@ -111,7 +123,10 @@ const getNotificationById = async (req, res) => {
     const userId = req.user.id || req.user._id;
     const { id } = req.params;
 
-    const notification = await Notification.findOne({ _id: id, targetUser: userId });
+    const mongoose = require('mongoose');
+    const safeUserId = mongoose.Types.ObjectId.isValid(userId) ? userId : new mongoose.Types.ObjectId();
+
+    const notification = await Notification.findOne({ _id: id, targetUser: safeUserId });
     if (!notification) {
       return sendError(res, 'Notification alert not found or unauthorized access.', [], 404);
     }
@@ -128,14 +143,17 @@ const markRead = async (req, res) => {
     const userId = req.user.id || req.user._id;
     const { id } = req.params;
 
+    const mongoose = require('mongoose');
+    const safeUserId = mongoose.Types.ObjectId.isValid(userId) ? userId : new mongoose.Types.ObjectId();
+
     const query = { _id: id };
     if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
       query.$or = [
-        { targetUser: userId },
+        { targetUser: safeUserId },
         { isAdmin: true }
       ];
     } else {
-      query.targetUser = userId;
+      query.targetUser = safeUserId;
     }
 
     const notification = await Notification.findOneAndUpdate(
@@ -159,14 +177,17 @@ const markAllRead = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
     
+    const mongoose = require('mongoose');
+    const safeUserId = mongoose.Types.ObjectId.isValid(userId) ? userId : new mongoose.Types.ObjectId();
+
     const query = { isRead: false };
     if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
       query.$or = [
-        { targetUser: userId },
+        { targetUser: safeUserId },
         { isAdmin: true }
       ];
     } else {
-      query.targetUser = userId;
+      query.targetUser = safeUserId;
     }
 
     await Notification.updateMany(
@@ -186,14 +207,17 @@ const deleteNotification = async (req, res) => {
     const userId = req.user.id || req.user._id;
     const { id } = req.params;
 
+    const mongoose = require('mongoose');
+    const safeUserId = mongoose.Types.ObjectId.isValid(userId) ? userId : new mongoose.Types.ObjectId();
+
     const query = { _id: id };
     if (req.user.role === 'Admin' || req.user.role === 'Super Admin' || req.user.role === 'Attendance Admin') {
       query.$or = [
-        { targetUser: userId },
+        { targetUser: safeUserId },
         { isAdmin: true }
       ];
     } else {
-      query.targetUser = userId;
+      query.targetUser = safeUserId;
     }
 
     const deleted = await Notification.findOneAndDelete(query);

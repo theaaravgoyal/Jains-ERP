@@ -808,6 +808,7 @@ export default function Attendance() {
       if (sidebarTab === 'on_time' && log.status !== 'Present') return false;
       if (sidebarTab === 'late' && log.status !== 'Late') return false;
       if (sidebarTab === 'logged_in' && log.status !== 'Present' && log.status !== 'Late' && log.status !== 'Half Day') return false;
+      if (sidebarTab === 'leave_absent' && log.status !== 'Paid Leave' && log.status !== 'Unpaid Leave' && log.status !== 'Leave' && log.status !== 'Absent') return false;
       
       // 2. Search Query
       const query = searchQuery.toLowerCase().trim();
@@ -827,12 +828,14 @@ export default function Attendance() {
     const loggedInCount = dailySummary.filter(d => d.status === 'Present' || d.status === 'Late' || d.status === 'Half Day').length;
     const onTimeCount = dailySummary.filter(d => d.status === 'Present').length;
     const lateCount = dailySummary.filter(d => d.status === 'Late').length;
+    const leaveAbsentCount = dailySummary.filter(d => ['Paid Leave', 'Unpaid Leave', 'Leave', 'Absent'].includes(d.status)).length;
     
     return {
       active: totalActive,
       loggedIn: loggedInCount,
       onTime: onTimeCount,
-      late: lateCount
+      late: lateCount,
+      leaveAbsent: leaveAbsentCount
     };
   }, [activeEmployees, dailySummary]);
 
@@ -1005,7 +1008,7 @@ export default function Attendance() {
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-3 top-10 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 space-y-2.5 max-h-[400px] overflow-y-auto z-50 flex flex-col">
+              <div className="absolute right-0 mt-3 top-10 w-80 max-w-[calc(100vw-32px)] bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 space-y-2.5 max-h-[400px] overflow-y-auto z-50 flex flex-col">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-extrabold text-slate-800 uppercase tracking-wider">Attendance Alerts</span>
@@ -1131,7 +1134,7 @@ export default function Attendance() {
         </Card>
       ) : (
         /* Main Layout Grid matching the screenshot */
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2.8fr)_minmax(280px,1fr)] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2.2fr)_minmax(330px,1fr)] gap-6 items-start">
           
           {/* LEFT COLUMN: Chart, Approvals, Profile Quick Card */}
           <div className="space-y-6 w-full min-w-0">
@@ -1602,10 +1605,10 @@ export default function Attendance() {
             {/* Checked-in Logs Card */}
             <div className="bg-white border border-[#E8E6E1] rounded-3xl p-5 shadow-xs space-y-4">
               {/* Sidebar Tabs */}
-              <div className="flex bg-[#FAF9F6] border border-[#E8E6E1] p-1 rounded-xl text-[9px] xl:text-[10px] font-bold text-slate-500 select-none">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 bg-[#FAF9F6] border border-[#E8E6E1] p-1 rounded-xl text-[9px] xl:text-[10px] font-bold text-slate-500 select-none gap-1">
                 <button 
                   onClick={() => setSidebarTab('logged_in')}
-                  className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all truncate px-1 ${
+                  className={`py-2 rounded-lg text-center cursor-pointer transition-all truncate px-0.5 ${
                     sidebarTab === 'logged_in' 
                       ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
                       : 'hover:text-slate-700'
@@ -1615,7 +1618,7 @@ export default function Attendance() {
                 </button>
                 <button 
                   onClick={() => setSidebarTab('on_time')}
-                  className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all truncate px-1 ${
+                  className={`py-2 rounded-lg text-center cursor-pointer transition-all truncate px-0.5 ${
                     sidebarTab === 'on_time' 
                       ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
                       : 'hover:text-slate-700'
@@ -1625,13 +1628,23 @@ export default function Attendance() {
                 </button>
                 <button 
                   onClick={() => setSidebarTab('late')}
-                  className={`flex-1 py-2 rounded-lg text-center cursor-pointer transition-all truncate px-1 ${
+                  className={`py-2 rounded-lg text-center cursor-pointer transition-all truncate px-0.5 ${
                     sidebarTab === 'late' 
                       ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
                       : 'hover:text-slate-700'
                   }`}
                 >
                   LATE ({counters.late})
+                </button>
+                <button 
+                  onClick={() => setSidebarTab('leave_absent')}
+                  className={`py-2 rounded-lg text-center cursor-pointer transition-all truncate px-0.5 ${
+                    sidebarTab === 'leave_absent' 
+                      ? 'bg-white text-slate-800 shadow-xs font-extrabold' 
+                      : 'hover:text-slate-700'
+                  }`}
+                >
+                  LEAVE/ABSENT ({counters.leaveAbsent})
                 </button>
               </div>
 
@@ -1689,10 +1702,16 @@ export default function Attendance() {
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full inline-block ${
-                              log.status === 'Present' ? 'bg-emerald-500 animate-pulse' : 'bg-red-300'
+                              log.status === 'Present' ? 'bg-emerald-500 animate-pulse' :
+                              log.status === 'Late' ? 'bg-red-300' :
+                              ['Paid Leave', 'Unpaid Leave', 'Leave'].includes(log.status) ? 'bg-blue-400' :
+                              'bg-rose-450'
                             }`} />
                             <span className="text-[10px] font-bold text-slate-500 uppercase select-none">
-                              {log.status === 'Present' ? 'On-time' : 'Late'}
+                              {log.status === 'Present' ? 'On-time' :
+                               log.status === 'Late' ? 'Late' :
+                               ['Paid Leave', 'Unpaid Leave', 'Leave'].includes(log.status) ? 'Leave' :
+                               'Absent'}
                             </span>
                           </div>
                           <button

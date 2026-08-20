@@ -65,3 +65,4 @@ On your first login attempt, if MongoDB is connected, a user will be created. If
 - `/site-management` - Site operations monitoring
 - `/fees-management` - Receivables and invoices dashboard
 # ERP-Portal
+# Jains-ERP

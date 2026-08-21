@@ -159,7 +159,7 @@ export default function CertificateManagement() {
   }, [certificates, search]);
 
   return (
-    <div className="space-y-8 animate-fade-in text-slate-800 font-sans pb-10">
+    <div className="space-y-8 p-4 md:p-8 animate-fade-in text-slate-800 font-sans pb-10">
       
       {/* Page Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-5 border-b border-[#E3E1DC]">
@@ -478,7 +478,7 @@ export default function CertificateManagement() {
 
       {/* EDIT OVERLAY MODAL */}
       {editItem && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 sm:p-6 z-50 animate-fade-in">
+        <div className="fixed top-0 left-[50%] translate-x-[-50%] w-screen h-screen bg-black/50 flex items-center justify-center p-4 sm:p-6 z-50 animate-fade-in">
           <div className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-lg shadow-2xl p-6 relative flex flex-col max-h-[85vh] overflow-hidden">
             <button 
               onClick={() => setEditItem(null)}

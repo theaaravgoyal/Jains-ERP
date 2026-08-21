@@ -963,7 +963,7 @@ export default function Attendance() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in text-slate-800 font-sans pb-10">
+    <div className="space-y-8 p-4 md:p-8 text-slate-800 font-sans">
       
       {/* Premium Sub-Header exactly like the mockup */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-5 border-b border-[#E3E1DC]">

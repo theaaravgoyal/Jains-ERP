@@ -23,7 +23,7 @@ const ProtectedLayout = ({ children }) => {
   if (isModulePage) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] text-slate-700 font-sans w-full">
-        <main className="w-full min-h-screen p-4 md:p-8">
+        <main className="w-full min-h-screen">
           {children}
         </main>
       </div>
@@ -49,7 +49,7 @@ const ProtectedLayout = ({ children }) => {
 
         <main className="flex-1 flex flex-col justify-between overflow-y-auto">
           {/* pb-24 on mobile prevents bottom navigation bar from overlapping the content */}
-          <div className="p-6 md:p-10 w-full max-w-7xl mx-auto pb-24 md:pb-10">
+          <div className="p-6 md:p-10 w-full mx-auto pb-24 md:pb-10">
             {children}
           </div>
 

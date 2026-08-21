@@ -101,7 +101,7 @@ const FeesManagement = () => {
 
   return (
     <SettingsProvider>
-      <div className="flex flex-col lg:flex-row min-h-[75vh] gap-6 text-slate-800 font-sans">
+      <div className="flex flex-col lg:flex-row min-h-[75vh] p-4 md:p-8 gap-6 text-slate-800 font-sans">
         
         {/* Mobile Drawer Trigger Bar */}
         <div className="lg:hidden flex items-center justify-between p-3.5 bg-white border border-[#EBEAE6] rounded-2xl shadow-xs w-full">

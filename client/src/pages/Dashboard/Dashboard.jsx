@@ -135,7 +135,7 @@ export default function Dashboard() {
   const absentCount = absentEmployees.length;
 
   return (
-    <div className="bg-white text-slate-800 font-sans flex flex-col">
+    <div className="bg-white text-slate-800 font-sans w-full flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div>
